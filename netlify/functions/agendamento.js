@@ -1,7 +1,7 @@
 export const handler = async (event) => {
   try {
     const response = await fetch(
-      "https://solitaryhornet-n8n.cloudfy.live/webhook-test/agendamento-consulta",
+      "https://solitaryhornet-n8n.cloudfy.live/webhook/agendamento-consulta",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
