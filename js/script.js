@@ -1,5 +1,5 @@
 const CONFIG = {
-    N8N_WEBHOOK_URL: 'https://solitaryhornet-n8n.cloudfy.live/webhook-test/agendamento-consulta',
+    N8N_WEBHOOK_URL: '/api/agendamento.js',
     TYPING_DELAY: 1000,
     SESSION_STORAGE_KEY: 'chatSessionId',
     MESSAGES: {
