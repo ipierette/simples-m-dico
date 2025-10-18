@@ -73,18 +73,29 @@ class ChatManager {
         };
 
         const response = await fetch(CONFIG.N8N_WEBHOOK_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-        });
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload),
+});
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+if (!response.ok) {
+  throw new Error(`HTTP error! status: ${response.status}`);
+}
 
-        return await response.json();
+// 🔧 Tenta converter para JSON, mas trata se vier vazio
+let data = null;
+const text = await response.text();
+if (text) {
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    console.warn("Resposta não era JSON, texto recebido:", text);
+    data = { response: text };
+  }
+}
+
+return data;
+
     }
 
     async processMessage(message) {

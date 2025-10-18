@@ -30,8 +30,9 @@ export const handler = async (event) => {
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
       },
-      body: text,
+      body: JSON.stringify({ response: text || "OK" }),
     };
+
   } catch (err) {
     console.error("Erro no proxy Netlify → n8n:", err);
     return {
