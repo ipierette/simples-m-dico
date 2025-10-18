@@ -1,5 +1,5 @@
 const CONFIG = {
-    N8N_WEBHOOK_URL: '/api/agendamento',
+    N8N_WEBHOOK_URL: '/api/send-to-n8n',
     TYPING_DELAY: 1000,
     SESSION_STORAGE_KEY: 'chatSessionId',
     MESSAGES: {
