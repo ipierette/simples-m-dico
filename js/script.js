@@ -8,21 +8,22 @@ const CONFIG = {
     webhookDicas: 'https://solitaryhornet-n8n.cloudfy.live/webhook/dicas-saude'
 };
 
-// ========================================
-// NAVEGAÇÃO E SCROLL
-// ========================================
 function scrollToAgendamento() {
-    document.getElementById('agendamento').scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-    });
+    const el = document.getElementById('agendamento');
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        console.warn('⚠️ scrollToAgendamento ignorado: elemento #agendamento não encontrado.');
+    }
 }
 
 function scrollTo(id) {
-    document.getElementById(id).scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-    });
+    const el = document.getElementById(id);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        console.warn(`⚠️ scrollTo ignorado: elemento com id "${id}" não encontrado.`);
+    }
 }
 
 // Adicionar classe active nos links de navegação ao scroll
@@ -34,7 +35,7 @@ window.addEventListener('scroll', () => {
         const sectionHeight = section.offsetHeight;
         const sectionTop = section.offsetTop - 100;
         const sectionId = section.getAttribute('id');
-        
+
         if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.classList.remove('active');
@@ -62,7 +63,7 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    
+
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     document.getElementById(`tab-${tabName}`).classList.add('active');
 }
@@ -75,9 +76,9 @@ let syncInProgress = false;
 function setupFieldSync() {
     const sintomasAgendamento = document.getElementById('sintomas');
     const sintomasIA = document.getElementById('sintomasIA');
-    
+
     if (!sintomasAgendamento || !sintomasIA) return;
-    
+
     // Sincronizar Agendamento → IA
     sintomasAgendamento.addEventListener('input', (e) => {
         if (!syncInProgress) {
@@ -86,7 +87,7 @@ function setupFieldSync() {
             syncInProgress = false;
         }
     });
-    
+
     // Sincronizar IA → Agendamento
     sintomasIA.addEventListener('input', (e) => {
         if (!syncInProgress) {
@@ -105,9 +106,9 @@ function setupFieldSync() {
 function setupConvenio() {
     const radiosConvenio = document.querySelectorAll('input[name="convenio"]');
     const convenioDetalhes = document.getElementById('convenioDetalhes');
-    
+
     if (!convenioDetalhes) return;
-    
+
     radiosConvenio.forEach(radio => {
         radio.addEventListener('change', (e) => {
             if (e.target.value === 'sim') {
@@ -165,108 +166,118 @@ function setupTelefoneMask() {
 function setupFormAgendamento() {
     const form = document.getElementById('formAgendamento');
     if (!form) return;
-    
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const btn = e.target.querySelector('.btn-submit');
         const btnText = btn.querySelector('span');
         const originalText = btnText.textContent;
-        
+
         btnText.textContent = 'Enviando...';
         btn.disabled = true;
-        
-        try {
-            const convenioSim = document.querySelector('input[name="convenio"]:checked').value === 'sim';
-            const nomeConvenio = convenioSim ? document.getElementById('nomeConvenio').value : 'Particular';
-            
-            const formData = {
-                nome: document.getElementById('nome').value,
-                telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
-                email: document.getElementById('email').value,
-                convenio: nomeConvenio,
-                dataPreferida: document.getElementById('data').value,
-                horarioPreferido: document.getElementById('horario').value,
-                sintomas: document.getElementById('sintomas').value || 'Não informado'
-            };
-            
-            console.log('📤 Enviando agendamento:', formData);
-            
-            const response = await fetch(CONFIG.webhookAgendar, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            });
-            
-            console.log('📡 Status da resposta:', response.status);
-            console.log('📋 Headers:', [...response.headers.entries()]);
-            
-            // ========================================
-            // CORREÇÃO PRINCIPAL - Aceitar qualquer status 2xx
-            // ========================================
-            if (response.status >= 200 && response.status < 300) {
-                console.log('✅ Agendamento enviado com sucesso!');
-                
-                // Tentar ler a resposta, mas não falhar se não for JSON
-                let responseData = null;
-                try {
-                    const text = await response.text();
-                    if (text && text.trim()) {
-                        responseData = JSON.parse(text);
-                        console.log('📦 Resposta do servidor:', responseData);
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = e.target.querySelector('.btn-submit');
+            const btnText = btn.querySelector('span');
+            const originalText = btnText.textContent;
+
+            btnText.textContent = 'Enviando...';
+            btn.disabled = true;
+
+            try {
+                const convenioSim = document.querySelector('input[name="convenio"]:checked').value === 'sim';
+                const nomeConvenio = convenioSim ? document.getElementById('nomeConvenio').value : 'Particular';
+
+                const formData = {
+                    nome: document.getElementById('nome').value,
+                    telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
+                    email: document.getElementById('email').value,
+                    convenio: nomeConvenio,
+                    dataPreferida: document.getElementById('data').value,
+                    horarioPreferido: document.getElementById('horario').value,
+                    sintomas: document.getElementById('sintomas').value || 'Não informado'
+                };
+
+                console.log('📤 Enviando agendamento:', formData);
+
+                const response = await fetch(CONFIG.webhookAgendar, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                console.log('📡 Status da resposta:', response.status);
+                console.log('📋 Headers:', [...response.headers.entries()]);
+
+                if (response.status >= 200 && response.status < 300) {
+                    console.log('✅ Agendamento enviado com sucesso!');
+
+                    let responseData = null;
+                    try {
+                        const text = await response.text();
+                        if (text && text.trim()) {
+                            responseData = JSON.parse(text);
+                            console.log('📦 Resposta do servidor:', responseData);
+                        }
+                    } catch (parseError) {
+                        console.log('⚠️ Resposta não é JSON, mas está OK:', parseError);
                     }
-                } catch (parseError) {
-                    console.log('⚠️ Resposta não é JSON, mas está OK:', parseError);
+
+                    showToast('✅ Agendamento realizado! Você receberá confirmação via WhatsApp.', 'success');
+
+                    // Limpar formulário
+                    e.target.reset();
+                    const sintomasIA = document.getElementById('sintomasIA');
+                    if (sintomasIA) sintomasIA.value = '';
+
+                    // Resetar horários
+                    const selectHorario = document.getElementById('horario');
+                    if (selectHorario) {
+                        selectHorario.innerHTML = '<option value="">Selecione primeiro uma data</option>';
+                        selectHorario.disabled = true;
+                    }
+
+                    // Limpar cache de horários
+                    if (window.validacaoHorarios) {
+                        window.validacaoHorarios.limparCache();
+                    }
+
+                    // Scroll suave para o topo — com proteção
+                    try {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } catch (err) {
+                        console.warn('⚠️ Falha ao rolar para o topo:', err);
+                    }
+
+                } else {
+                    throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
                 }
-                
-                showToast('✅ Agendamento realizado! Você receberá confirmação via WhatsApp.', 'success');
-                
-                // Limpar formulário
-                e.target.reset();
-                document.getElementById('sintomasIA').value = '';
-                
-                // Resetar horários
-                const selectHorario = document.getElementById('horario');
-                if (selectHorario) {
-                    selectHorario.innerHTML = '<option value="">Selecione primeiro uma data</option>';
-                    selectHorario.disabled = true;
+
+            } catch (error) {
+                console.error('❌ Erro ao agendar:', error);
+                console.error('Detalhes:', error.message);
+
+                let mensagemErro = 'Erro ao realizar agendamento. ';
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    mensagemErro += 'Verifique sua conexão com a internet.';
+                } else if (error.message.includes('CORS')) {
+                    mensagemErro += 'Erro de configuração. Entre em contato com o suporte.';
+                } else {
+                    mensagemErro += 'Tente novamente ou ligue: (11) 3456-7890';
                 }
-                
-                // Limpar cache de horários
-                if (window.validacaoHorarios) {
-                    window.validacaoHorarios.limparCache();
-                }
-                
-                // Scroll suave para o topo
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                
-            } else {
-                // Status não é 2xx
-                throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+
+                showToast('❌ ' + mensagemErro, 'error');
+            } finally {
+                btnText.textContent = originalText;
+                btn.disabled = false;
             }
-            
-        } catch (error) {
-            console.error('❌ Erro ao agendar:', error);
-            console.error('Detalhes:', error.message);
-            
-            // Mensagem de erro mais amigável
-            let mensagemErro = 'Erro ao realizar agendamento. ';
-            
-            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                mensagemErro += 'Verifique sua conexão com a internet.';
-            } else if (error.message.includes('CORS')) {
-                mensagemErro += 'Erro de configuração. Entre em contato com o suporte.';
-            } else {
-                mensagemErro += 'Tente novamente ou ligue: (11) 3456-7890';
-            }
-            
-            showToast('❌ ' + mensagemErro, 'error');
-        } finally {
-            btnText.textContent = originalText;
-            btn.disabled = false;
-        }
+        });
+
     });
 }
 
@@ -276,24 +287,24 @@ function setupFormAgendamento() {
 function setupFormConsultar() {
     const form = document.getElementById('formConsultar');
     if (!form) return;
-    
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const telefone = document.getElementById('consultarTelefone').value.replace(/\D/g, '');
         const resultado = document.getElementById('resultadoConsulta');
-        
+
         resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Consultando...</p></div>';
-        
+
         try {
             const response = await fetch(`${CONFIG.webhookConsultar}?nome=${encodeURIComponent(telefone)}`);
-            
+
             if (!response.ok) {
                 throw new Error('Erro ao consultar');
             }
-            
+
             const data = await response.json();
-            
+
             if (data.agendamentos && data.agendamentos.length > 0) {
                 resultado.innerHTML = data.agendamentos.map(ag => `
                     <div class="credencial-item">
@@ -339,16 +350,16 @@ async function obterDicas() {
     const sintomas = document.getElementById('sintomasIA').value.trim();
     const resultado = document.getElementById('dicasResultado');
     const btn = document.getElementById('btnObterDicas');
-    
+
     if (!sintomas) {
         showToast('Por favor, descreva seus sintomas antes de solicitar dicas.', 'error');
         return;
     }
-    
+
     resultado.style.display = 'block';
     resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Analisando sintomas e consultando base científica...</p></div>';
     btn.disabled = true;
-    
+
     try {
         const response = await fetch(CONFIG.webhookDicas, {
             method: 'POST',
@@ -357,12 +368,12 @@ async function obterDicas() {
             },
             body: JSON.stringify({ sintomas })
         });
-        
+
         if (!response.ok) throw new Error('Erro na requisição');
-        
+
         const data = await response.json();
         const dicasHTML = data.dicas || data.output || 'Não foi possível gerar orientações.';
-        
+
         resultado.innerHTML = `
             <div style="margin-bottom: 24px;">
                 <h3 style="font-size: 1.5rem; margin-bottom: 16px; color: var(--accent-purple-light);">
@@ -380,9 +391,9 @@ async function obterDicas() {
                 </p>
             </div>
         `;
-        
+
         resultado.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        
+
     } catch (error) {
         console.error('Erro:', error);
         resultado.innerHTML = `
@@ -408,11 +419,11 @@ function showToast(message, type = 'success') {
         console.warn('Toast element not found');
         return;
     }
-    
+
     toast.textContent = message;
     toast.className = `toast ${type}`;
     toast.classList.add('show');
-    
+
     setTimeout(() => {
         toast.classList.remove('show');
     }, 5000);
@@ -441,7 +452,7 @@ function setupAnimations() {
     }, {
         threshold: 0.1
     });
-    
+
     document.querySelectorAll('.especialidade-card, .credencial-item').forEach(el => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(20px)';
@@ -455,7 +466,7 @@ function setupAnimations() {
 // ========================================
 function setupValidation() {
     const inputs = document.querySelectorAll('input[required], textarea[required], select[required]');
-    
+
     inputs.forEach(input => {
         input.addEventListener('blur', () => {
             if (!input.value.trim()) {
@@ -464,7 +475,7 @@ function setupValidation() {
                 input.style.borderColor = 'rgba(255, 255, 255, 0.05)';
             }
         });
-        
+
         input.addEventListener('input', () => {
             if (input.value.trim()) {
                 input.style.borderColor = 'var(--accent-cyan)';
@@ -479,7 +490,7 @@ function setupValidation() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Sistema carregado - Conectado ao N8N');
     console.log('📡 Webhook Agendar:', CONFIG.webhookAgendar);
-    
+
     setupFieldSync();
     setupConvenio();
     setupTelefoneMask();
