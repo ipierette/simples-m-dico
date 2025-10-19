@@ -1,9 +1,11 @@
 // ========================================
-// CONFIGURAÇÕES
+// CONFIGURAÇÕES - WEBHOOKS N8N
 // ========================================
 const CONFIG = {
-    webhookN8N: 'https://SEU-N8N.app.n8n.cloud/webhook/agendamento-consulta',
-    netlifyFunction: '/.netlify/functions/dicas-ia'
+    n8nBase: 'https://solitaryhornet-n8n.cloudfy.live/webhook',
+    webhookAgendar: 'https://solitaryhornet-n8n.cloudfy.live/webhook/agendar-consulta',
+    webhookConsultar: 'https://solitaryhornet-n8n.cloudfy.live/webhook/consultar-agendamento',
+    webhookDicas: 'https://solitaryhornet-n8n.cloudfy.live/webhook/dicas-saude'
 };
 
 // ========================================
@@ -54,7 +56,6 @@ function toggleMobileMenu() {
 // SISTEMA DE TABS
 // ========================================
 function switchTab(tabName) {
-    // Remover active de todos os botões e conteúdos
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
@@ -62,7 +63,6 @@ function switchTab(tabName) {
         content.classList.remove('active');
     });
     
-    // Adicionar active no botão e conteúdo clicado
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     document.getElementById(`tab-${tabName}`).classList.add('active');
 }
@@ -75,6 +75,8 @@ let syncInProgress = false;
 function setupFieldSync() {
     const sintomasAgendamento = document.getElementById('sintomas');
     const sintomasIA = document.getElementById('sintomasIA');
+    
+    if (!sintomasAgendamento || !sintomasIA) return;
     
     // Sincronizar Agendamento → IA
     sintomasAgendamento.addEventListener('input', (e) => {
@@ -95,17 +97,16 @@ function setupFieldSync() {
     });
 }
 
-// Inicializar sincronização quando o DOM carregar
-document.addEventListener('DOMContentLoaded', setupFieldSync);
-
 // ========================================
 // FORMULÁRIO DE AGENDAMENTO
 // ========================================
 
 // Mostrar/ocultar campos de convênio
-document.addEventListener('DOMContentLoaded', () => {
+function setupConvenio() {
     const radiosConvenio = document.querySelectorAll('input[name="convenio"]');
     const convenioDetalhes = document.getElementById('convenioDetalhes');
+    
+    if (!convenioDetalhes) return;
     
     radiosConvenio.forEach(radio => {
         radio.addEventListener('change', (e) => {
@@ -115,169 +116,172 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 convenioDetalhes.style.display = 'none';
                 document.getElementById('nomeConvenio').required = false;
+                document.getElementById('nomeConvenio').value = '';
             }
         });
     });
-});
+}
 
 // Máscara de telefone
-// Substitua o bloco atual de máscara de telefone no script.js por este:
+function setupTelefoneMask() {
+    const telefoneInputs = [
+        document.getElementById('telefone'),
+        document.getElementById('consultarTelefone')
+    ];
 
-document.addEventListener('DOMContentLoaded', () => {
-  const telefoneInputs = [
-    document.getElementById('telefone'),
-    document.getElementById('consultarTelefone')
-  ];
+    telefoneInputs.forEach(input => {
+        if (!input) return;
 
-  telefoneInputs.forEach(input => {
-    if (!input) return;
+        input.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
 
-    input.addEventListener('input', (e) => {
-      let value = e.target.value.replace(/\D/g, '');
-      if (value.length > 11) value = value.slice(0, 11); // limite máximo
+            if (value.length > 6) {
+                e.target.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+            } else if (value.length > 2) {
+                e.target.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+            } else if (value.length > 0) {
+                e.target.value = `(${value}`;
+            }
+        });
 
-      // Máscara fluida
-      if (value.length > 6) {
-        e.target.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
-      } else if (value.length > 2) {
-        e.target.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
-      } else {
-        e.target.value = value.replace(/^(\d{0,2})/, '($1');
-      }
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace') {
+                const start = e.target.selectionStart;
+                const end = e.target.selectionEnd;
+                if (start === end && /\D/.test(e.target.value.charAt(start - 1))) {
+                    e.target.value = e.target.value.slice(0, start - 1) + e.target.value.slice(end);
+                    e.target.setSelectionRange(start - 1, start - 1);
+                    e.preventDefault();
+                }
+            }
+        });
     });
-
-    // Permitir apagar normalmente (sem travar)
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace') {
-        const start = e.target.selectionStart;
-        const end = e.target.selectionEnd;
-        if (start === end && /\D/.test(e.target.value.charAt(start - 1))) {
-          e.target.value = e.target.value.slice(0, start - 1) + e.target.value.slice(end);
-          e.preventDefault();
-        }
-      }
-    });
-  });
-});
-
-// Definir data mínima como hoje
-document.addEventListener('DOMContentLoaded', () => {
-    const dataInput = document.getElementById('data');
-    if (dataInput) {
-        const hoje = new Date().toISOString().split('T')[0];
-        dataInput.min = hoje;
-    }
-});
+}
 
 // Submit formulário de agendamento
-document.getElementById('formAgendamento').addEventListener('submit', async (e) => {
-    e.preventDefault();
+function setupFormAgendamento() {
+    const form = document.getElementById('formAgendamento');
+    if (!form) return;
     
-    const btn = e.target.querySelector('.btn-submit');
-    const btnText = btn.querySelector('span');
-    const originalText = btnText.textContent;
-    
-    // Mostrar loading
-    btnText.textContent = 'Enviando...';
-    btn.disabled = true;
-    
-    try {
-        // Coletar dados do formulário
-        const formData = {
-            nome: document.getElementById('nome').value,
-            telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
-            email: document.getElementById('email').value,
-            convenio: document.querySelector('input[name="convenio"]:checked').value,
-            nomeConvenio: document.getElementById('nomeConvenio').value || 'Particular',
-            data: document.getElementById('data').value,
-            horario: document.getElementById('horario').value,
-            sintomas: document.getElementById('sintomas').value || 'Não informado',
-            sessionId: `agendamento_${Date.now()}`
-        };
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        // Enviar para n8n
-        const response = await fetch(CONFIG.webhookN8N, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData)
-        });
+        const btn = e.target.querySelector('.btn-submit');
+        const btnText = btn.querySelector('span');
+        const originalText = btnText.textContent;
         
-        if (response.ok) {
-            showToast('Agendamento realizado com sucesso! Você receberá uma confirmação via WhatsApp.', 'success');
-            e.target.reset();
+        btnText.textContent = 'Enviando...';
+        btn.disabled = true;
+        
+        try {
+            const convenioSim = document.querySelector('input[name="convenio"]:checked').value === 'sim';
+            const nomeConvenio = convenioSim ? document.getElementById('nomeConvenio').value : 'Particular';
             
-            // Limpar também o campo sincronizado
-            document.getElementById('sintomasIA').value = '';
+            const formData = {
+                nome: document.getElementById('nome').value,
+                telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
+                email: document.getElementById('email').value,
+                convenio: nomeConvenio,
+                dataPreferida: document.getElementById('data').value,
+                horarioPreferido: document.getElementById('horario').value,
+                sintomas: document.getElementById('sintomas').value || 'Não informado'
+            };
             
-            // Scroll para o topo
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-            throw new Error('Erro ao enviar agendamento');
+            const response = await fetch(CONFIG.webhookAgendar, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (response.ok) {
+                showToast('✅ Agendamento realizado! Você receberá confirmação via WhatsApp.', 'success');
+                e.target.reset();
+                document.getElementById('sintomasIA').value = '';
+                
+                // Resetar horários
+                const selectHorario = document.getElementById('horario');
+                selectHorario.innerHTML = '<option value="">Selecione primeiro uma data</option>';
+                selectHorario.disabled = true;
+                
+                // Limpar cache
+                if (window.validacaoHorarios) {
+                    window.validacaoHorarios.limparCache();
+                }
+                
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                throw new Error('Erro ao enviar agendamento');
+            }
+            
+        } catch (error) {
+            console.error('Erro:', error);
+            showToast('❌ Erro ao realizar agendamento. Tente novamente ou ligue: (11) 3456-7890', 'error');
+        } finally {
+            btnText.textContent = originalText;
+            btn.disabled = false;
         }
-        
-    } catch (error) {
-        console.error('Erro:', error);
-        showToast('Erro ao realizar agendamento. Por favor, tente novamente ou entre em contato por telefone.', 'error');
-    } finally {
-        btnText.textContent = originalText;
-        btn.disabled = false;
-    }
-});
+    });
+}
 
 // ========================================
 // CONSULTAR AGENDAMENTO
 // ========================================
-document.getElementById('formConsultar').addEventListener('submit', async (e) => {
-    e.preventDefault();
+function setupFormConsultar() {
+    const form = document.getElementById('formConsultar');
+    if (!form) return;
     
-    const telefone = document.getElementById('consultarTelefone').value.replace(/\D/g, '');
-    const resultado = document.getElementById('resultadoConsulta');
-    
-    resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Consultando...</p></div>';
-    
-    try {
-        // Consultar no n8n/Supabase
-        const response = await fetch(`${CONFIG.webhookN8N}/consultar?telefone=${telefone}`);
-        const data = await response.json();
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        if (data.agendamentos && data.agendamentos.length > 0) {
-            resultado.innerHTML = data.agendamentos.map(ag => `
-                <div class="credencial-item">
-                    <div class="credencial-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <rect x="3" y="4" width="18" height="18" rx="2" stroke="#00d4aa" stroke-width="2" fill="none"/>
-                            <path d="M8 2V6M16 2V6M3 10H21" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"/>
+        const telefone = document.getElementById('consultarTelefone').value.replace(/\D/g, '');
+        const resultado = document.getElementById('resultadoConsulta');
+        
+        resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Consultando...</p></div>';
+        
+        try {
+            const response = await fetch(`${CONFIG.webhookConsultar}?nome=${encodeURIComponent(telefone)}`);
+            const data = await response.json();
+            
+            if (data.agendamentos && data.agendamentos.length > 0) {
+                resultado.innerHTML = data.agendamentos.map(ag => `
+                    <div class="credencial-item">
+                        <div class="credencial-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="4" width="18" height="18" rx="2" stroke="#00d4aa" stroke-width="2" fill="none"/>
+                                <path d="M8 2V6M16 2V6M3 10H21" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="credencial-title">${formatarData(ag.data_preferida)} às ${ag.horario_preferido}</div>
+                            <div class="credencial-desc">Paciente: ${ag.nome}</div>
+                            <div class="credencial-desc">Convênio: ${ag.convenio || 'Particular'}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                resultado.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin-bottom: 16px;">
+                            <circle cx="32" cy="32" r="30" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+                            <path d="M32 20V34M32 42H32.02" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
                         </svg>
+                        <p>Nenhum agendamento encontrado para este telefone.</p>
                     </div>
-                    <div>
-                        <div class="credencial-title">${formatarData(ag.data)} às ${ag.horario}</div>
-                        <div class="credencial-desc">Status: ${ag.status || 'Confirmado'}</div>
-                        <div class="credencial-desc">Convênio: ${ag.convenio}</div>
-                    </div>
-                </div>
-            `).join('');
-        } else {
+                `;
+            }
+        } catch (error) {
+            console.error('Erro:', error);
             resultado.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
-                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin-bottom: 16px;">
-                        <circle cx="32" cy="32" r="30" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
-                        <path d="M32 20V34M32 42H32.02" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
-                    </svg>
-                    <p>Nenhum agendamento encontrado para este telefone.</p>
+                <div style="text-align: center; padding: 40px; color: #ff6b6b;">
+                    <p>Erro ao consultar agendamentos. Tente novamente.</p>
                 </div>
             `;
         }
-    } catch (error) {
-        console.error('Erro:', error);
-        resultado.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #ff6b6b;">
-                <p>Erro ao consultar agendamentos. Tente novamente.</p>
-            </div>
-        `;
-    }
-});
+    });
+}
 
 // ========================================
 // DICAS DE IA
@@ -292,13 +296,12 @@ async function obterDicas() {
         return;
     }
     
-    // Mostrar loading
     resultado.style.display = 'block';
     resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Analisando sintomas e consultando base científica...</p></div>';
     btn.disabled = true;
     
     try {
-        const response = await fetch(CONFIG.netlifyFunction, {
+        const response = await fetch(CONFIG.webhookDicas, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -309,23 +312,17 @@ async function obterDicas() {
         if (!response.ok) throw new Error('Erro na requisição');
         
         const data = await response.json();
+        const dicasHTML = data.dicas || data.output || 'Não foi possível gerar orientações.';
         
-        // Exibir dicas
         resultado.innerHTML = `
             <div style="margin-bottom: 24px;">
                 <h3 style="font-size: 1.5rem; margin-bottom: 16px; color: var(--accent-purple-light);">
-                    Orientações de Saúde
+                    💡 Orientações de Saúde
                 </h3>
-                <p style="color: var(--text-secondary); line-height: 1.7;">
-                    ${data.dicas || 'Não foi possível gerar orientações para os sintomas informados.'}
-                </p>
-            </div>
-            ${data.referencias ? `
-                <div class="dica-item">
-                    <div class="dica-titulo">📚 Referências Científicas</div>
-                    <div class="dica-texto">${data.referencias}</div>
+                <div style="color: var(--text-secondary); line-height: 1.7;">
+                    ${dicasHTML}
                 </div>
-            ` : ''}
+            </div>
             <div style="margin-top: 24px; padding: 16px; background: rgba(255, 107, 107, 0.1); border-radius: 12px; border: 1px solid rgba(255, 107, 107, 0.2);">
                 <strong style="color: #ff6b6b;">⚠️ Lembre-se:</strong>
                 <p style="margin-top: 8px; color: var(--text-secondary);">
@@ -335,7 +332,6 @@ async function obterDicas() {
             </div>
         `;
         
-        // Scroll suave até o resultado
         resultado.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         
     } catch (error) {
@@ -372,6 +368,7 @@ function showToast(message, type = 'success') {
 // UTILITÁRIOS
 // ========================================
 function formatarData(data) {
+    if (!data) return '';
     const [ano, mes, dia] = data.split('-');
     return `${dia}/${mes}/${ano}`;
 }
@@ -379,7 +376,7 @@ function formatarData(data) {
 // ========================================
 // ANIMAÇÕES DE ENTRADA
 // ========================================
-document.addEventListener('DOMContentLoaded', () => {
+function setupAnimations() {
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -397,12 +394,12 @@ document.addEventListener('DOMContentLoaded', () => {
         el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
         observer.observe(el);
     });
-});
+}
 
 // ========================================
 // VALIDAÇÃO DE FORMULÁRIOS
 // ========================================
-document.addEventListener('DOMContentLoaded', () => {
+function setupValidation() {
     const inputs = document.querySelectorAll('input[required], textarea[required], select[required]');
     
     inputs.forEach(input => {
@@ -420,4 +417,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+}
+
+// ========================================
+// INICIALIZAÇÃO GERAL
+// ========================================
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Sistema carregado - Conectado ao N8N');
+    
+    setupFieldSync();
+    setupConvenio();
+    setupTelefoneMask();
+    setupFormAgendamento();
+    setupFormConsultar();
+    setupAnimations();
+    setupValidation();
 });
