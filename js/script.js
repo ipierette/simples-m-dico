@@ -121,28 +121,43 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Máscara de telefone
+// Substitua o bloco atual de máscara de telefone no script.js por este:
+
 document.addEventListener('DOMContentLoaded', () => {
-    const telefoneInputs = [
-        document.getElementById('telefone'),
-        document.getElementById('consultarTelefone')
-    ];
-    
-    telefoneInputs.forEach(input => {
-        if (input) {
-            input.addEventListener('input', (e) => {
-                let value = e.target.value.replace(/\D/g, '');
-                
-                if (value.length <= 11) {
-                    value = value.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
-                    value = value.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
-                    value = value.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
-                    value = value.replace(/^(\d*)/, '($1');
-                }
-                
-                e.target.value = value;
-            });
-        }
+  const telefoneInputs = [
+    document.getElementById('telefone'),
+    document.getElementById('consultarTelefone')
+  ];
+
+  telefoneInputs.forEach(input => {
+    if (!input) return;
+
+    input.addEventListener('input', (e) => {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length > 11) value = value.slice(0, 11); // limite máximo
+
+      // Máscara fluida
+      if (value.length > 6) {
+        e.target.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+      } else if (value.length > 2) {
+        e.target.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+      } else {
+        e.target.value = value.replace(/^(\d{0,2})/, '($1');
+      }
     });
+
+    // Permitir apagar normalmente (sem travar)
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        const start = e.target.selectionStart;
+        const end = e.target.selectionEnd;
+        if (start === end && /\D/.test(e.target.value.charAt(start - 1))) {
+          e.target.value = e.target.value.slice(0, start - 1) + e.target.value.slice(end);
+          e.preventDefault();
+        }
+      }
+    });
+  });
 });
 
 // Definir data mínima como hoje

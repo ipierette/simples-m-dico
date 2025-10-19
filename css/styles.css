@@ -1041,3 +1041,8 @@ body {
         justify-content: center;
     }
 }
+
+select option[disabled] {
+  color: #ff6b6b !important;
+  background: rgba(255, 107, 107, 0.1);
+}
