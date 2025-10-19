@@ -159,7 +159,9 @@ function setupTelefoneMask() {
     });
 }
 
-// Submit formulário de agendamento
+// ========================================
+// Submit formulário de agendamento - CORRIGIDO
+// ========================================
 function setupFormAgendamento() {
     const form = document.getElementById('formAgendamento');
     if (!form) return;
@@ -188,6 +190,8 @@ function setupFormAgendamento() {
                 sintomas: document.getElementById('sintomas').value || 'Não informado'
             };
             
+            console.log('📤 Enviando agendamento:', formData);
+            
             const response = await fetch(CONFIG.webhookAgendar, {
                 method: 'POST',
                 headers: {
@@ -196,29 +200,69 @@ function setupFormAgendamento() {
                 body: JSON.stringify(formData)
             });
             
-            if (response.ok) {
+            console.log('📡 Status da resposta:', response.status);
+            console.log('📋 Headers:', [...response.headers.entries()]);
+            
+            // ========================================
+            // CORREÇÃO PRINCIPAL - Aceitar qualquer status 2xx
+            // ========================================
+            if (response.status >= 200 && response.status < 300) {
+                console.log('✅ Agendamento enviado com sucesso!');
+                
+                // Tentar ler a resposta, mas não falhar se não for JSON
+                let responseData = null;
+                try {
+                    const text = await response.text();
+                    if (text && text.trim()) {
+                        responseData = JSON.parse(text);
+                        console.log('📦 Resposta do servidor:', responseData);
+                    }
+                } catch (parseError) {
+                    console.log('⚠️ Resposta não é JSON, mas está OK:', parseError);
+                }
+                
                 showToast('✅ Agendamento realizado! Você receberá confirmação via WhatsApp.', 'success');
+                
+                // Limpar formulário
                 e.target.reset();
                 document.getElementById('sintomasIA').value = '';
                 
                 // Resetar horários
                 const selectHorario = document.getElementById('horario');
-                selectHorario.innerHTML = '<option value="">Selecione primeiro uma data</option>';
-                selectHorario.disabled = true;
+                if (selectHorario) {
+                    selectHorario.innerHTML = '<option value="">Selecione primeiro uma data</option>';
+                    selectHorario.disabled = true;
+                }
                 
-                // Limpar cache
+                // Limpar cache de horários
                 if (window.validacaoHorarios) {
                     window.validacaoHorarios.limparCache();
                 }
                 
+                // Scroll suave para o topo
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                
             } else {
-                throw new Error('Erro ao enviar agendamento');
+                // Status não é 2xx
+                throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
             }
             
         } catch (error) {
-            console.error('Erro:', error);
-            showToast('❌ Erro ao realizar agendamento. Tente novamente ou ligue: (11) 3456-7890', 'error');
+            console.error('❌ Erro ao agendar:', error);
+            console.error('Detalhes:', error.message);
+            
+            // Mensagem de erro mais amigável
+            let mensagemErro = 'Erro ao realizar agendamento. ';
+            
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                mensagemErro += 'Verifique sua conexão com a internet.';
+            } else if (error.message.includes('CORS')) {
+                mensagemErro += 'Erro de configuração. Entre em contato com o suporte.';
+            } else {
+                mensagemErro += 'Tente novamente ou ligue: (11) 3456-7890';
+            }
+            
+            showToast('❌ ' + mensagemErro, 'error');
         } finally {
             btnText.textContent = originalText;
             btn.disabled = false;
@@ -243,6 +287,11 @@ function setupFormConsultar() {
         
         try {
             const response = await fetch(`${CONFIG.webhookConsultar}?nome=${encodeURIComponent(telefone)}`);
+            
+            if (!response.ok) {
+                throw new Error('Erro ao consultar');
+            }
+            
             const data = await response.json();
             
             if (data.agendamentos && data.agendamentos.length > 0) {
@@ -355,6 +404,11 @@ async function obterDicas() {
 // ========================================
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
+    if (!toast) {
+        console.warn('Toast element not found');
+        return;
+    }
+    
     toast.textContent = message;
     toast.className = `toast ${type}`;
     toast.classList.add('show');
@@ -424,6 +478,7 @@ function setupValidation() {
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Sistema carregado - Conectado ao N8N');
+    console.log('📡 Webhook Agendar:', CONFIG.webhookAgendar);
     
     setupFieldSync();
     setupConvenio();
