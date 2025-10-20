@@ -145,32 +145,51 @@ const HORARIOS_DISPONIVEIS = [
 
 async function atualizarHorarios(dataStr) {
   const selectHorario = document.getElementById('horario');
-  
+  const inputData = document.getElementById('data');
+  const feedbackDiv = document.getElementById('feedback-data');
+
   if (!dataStr) {
-    // Resetar para estado inicial
     selectHorario.innerHTML = '<option value="">Selecione primeiro uma data</option>';
     selectHorario.disabled = true;
     return;
   }
-  
-  // Mostrar loading
+
   selectHorario.disabled = true;
   selectHorario.innerHTML = '<option value="">Carregando horários...</option>';
-  
+
   try {
-    // Buscar horários ocupados
     const horariosOcupados = await buscarHorariosOcupados(dataStr);
-    
-    // Reconstruir as opções
+    const todosOcupados = horariosOcupados.length >= HORARIOS_DISPONIVEIS.length;
+
+    // Verifica se o dia está totalmente cheio
+    if (todosOcupados) {
+      if (feedbackDiv) {
+        feedbackDiv.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px; color: #ff6b6b; margin-top: 8px;">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="7" stroke="#ff6b6b" stroke-width="1.5"/>
+              <path d="M8 4V8M8 11H8.01" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Data indisponível: todos os horários estão ocupados</span>
+          </div>
+        `;
+      }
+
+      inputData.style.borderColor = '#ff6b6b';
+      inputData.style.backgroundColor = 'rgba(255, 107, 107, 0.05)';
+      selectHorario.innerHTML = '<option value="">Nenhum horário disponível</option>';
+      selectHorario.disabled = true;
+      return;
+    }
+
+    // Recria opções do select normalmente
     selectHorario.innerHTML = '<option value="">Selecione um horário</option>';
-    
+
     HORARIOS_DISPONIVEIS.forEach(horario => {
       const option = document.createElement('option');
       option.value = horario;
-      
-      const ocupado = horariosOcupados.includes(horario);
-      
-      if (ocupado) {
+
+      if (horariosOcupados.includes(horario)) {
         option.textContent = `${horario} - OCUPADO`;
         option.disabled = true;
         option.style.color = '#ff6b6b';
@@ -178,12 +197,13 @@ async function atualizarHorarios(dataStr) {
       } else {
         option.textContent = horario;
       }
-      
+
       selectHorario.appendChild(option);
     });
-    
+
     selectHorario.disabled = false;
-    
+    if (feedbackDiv) feedbackDiv.innerHTML = '';
+
   } catch (erro) {
     console.error('Erro ao atualizar horários:', erro);
     selectHorario.innerHTML = '<option value="">Erro ao carregar horários</option>';
@@ -193,42 +213,43 @@ async function atualizarHorarios(dataStr) {
 // ========================================
 // VALIDAR INPUT DE DATA
 // ========================================
-function validarData(input) {
+async function validarData(input) {
   const data = new Date(input.value + 'T00:00:00');
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
-  
+
   let mensagemErro = '';
   let valido = true;
-  
-  // Data no passado
+
   if (data < hoje) {
     mensagemErro = 'Data já passou';
     valido = false;
-  }
-  
-  // Final de semana
-  else if (isFinalDeSemana(data)) {
+  } else if (isFinalDeSemana(data)) {
     mensagemErro = 'Não atendemos aos finais de semana';
     valido = false;
-  }
-  
-  // Feriado
-  else {
+  } else {
     const feriado = isFeriado(data);
     if (feriado.sim) {
       mensagemErro = `Feriado: ${feriado.nome}`;
       valido = false;
     }
   }
-  
-  // Exibir feedback visual
+
   const feedbackDiv = document.getElementById('feedback-data');
-  
+  const dataStr = input.value;
+
+  // Verifica ocupação total do dia (via n8n)
+  if (valido && dataStr) {
+    const horariosOcupados = await buscarHorariosOcupados(dataStr);
+    if (horariosOcupados.length >= HORARIOS_DISPONIVEIS.length) {
+      mensagemErro = 'Data indisponível: todos os horários estão ocupados';
+      valido = false;
+    }
+  }
+
   if (!valido) {
     input.style.borderColor = '#ff6b6b';
     input.style.backgroundColor = 'rgba(255, 107, 107, 0.05)';
-    
     if (feedbackDiv) {
       feedbackDiv.innerHTML = `
         <div style="display: flex; align-items: center; gap: 8px; color: #ff6b6b; margin-top: 8px;">
@@ -240,62 +261,143 @@ function validarData(input) {
         </div>
       `;
     }
-    
-    // Limpar horário
     document.getElementById('horario').value = '';
     atualizarHorarios('');
-    
     return false;
   } else {
     input.style.borderColor = 'var(--accent-cyan)';
     input.style.backgroundColor = 'transparent';
-    
-    if (feedbackDiv) {
-      feedbackDiv.innerHTML = '';
-    }
-    
-    // Atualizar horários disponíveis
-    atualizarHorarios(input.value);
-    
+    if (feedbackDiv) feedbackDiv.innerHTML = '';
+    atualizarHorarios(dataStr);
     return true;
   }
 }
 
 // ========================================
-// BLOQUEAR DATAS NO CALENDARIO (HTML5)
+// ⚡ Atualizar lista de datas totalmente ocupadas (14 dias, consultas paralelas)
 // ========================================
-function configurarInputData() {
+async function atualizarDatasIndisponiveis() {
+  const hoje = new Date();
+  const DIAS_A_VERIFICAR = 14;
+  const datasIndisponiveis = new Set();
+
+  // 🔹 Gera as 14 datas futuras (ignorando fins de semana e feriados)
+  const datasValidas = [];
+  for (let i = 0; i < DIAS_A_VERIFICAR; i++) {
+    const data = new Date(hoje);
+    data.setDate(hoje.getDate() + i);
+    const dataStr = data.toISOString().split('T')[0];
+
+    if (isFinalDeSemana(data)) {
+      datasIndisponiveis.add(dataStr);
+      continue;
+    }
+
+    const feriado = isFeriado(data);
+    if (feriado.sim) {
+      datasIndisponiveis.add(dataStr);
+      continue;
+    }
+
+    datasValidas.push(dataStr);
+  }
+
+  // 🔹 Faz todas as consultas ao N8N em paralelo
+  try {
+    const resultados = await Promise.allSettled(
+      datasValidas.map(async dataStr => {
+        const ocupados = await buscarHorariosOcupados(dataStr);
+        return { dataStr, ocupados };
+      })
+    );
+
+    // 🔹 Filtra as datas totalmente cheias
+    resultados.forEach(res => {
+      if (res.status === 'fulfilled') {
+        const { dataStr, ocupados } = res.value;
+        if (ocupados.length >= HORARIOS_DISPONIVEIS.length) {
+          datasIndisponiveis.add(dataStr);
+        }
+      } else {
+        console.warn('Erro ao verificar data:', res.reason);
+      }
+    });
+  } catch (erro) {
+    console.error('Erro geral ao consultar horários:', erro);
+  }
+
+  const lista = [...datasIndisponiveis];
+  console.log('📅 Datas indisponíveis (verificação paralela 14 dias):', lista);
+  return lista;
+}
+
+// ========================================
+// 📅 BLOQUEAR DATAS NO CALENDÁRIO HTML5
+// ========================================
+async function configurarInputData() {
   const inputData = document.getElementById('data');
-  
   if (!inputData) return;
-  
-  // Data mínima: hoje
-  const hoje = new Date().toISOString().split('T')[0];
-  inputData.min = hoje;
-  
-  // Data máxima: 90 dias no futuro
+
+  // Configura intervalo de 90 dias
+  const hoje = new Date();
+  inputData.min = hoje.toISOString().split('T')[0];
   const maxData = new Date();
   maxData.setDate(maxData.getDate() + 90);
   inputData.max = maxData.toISOString().split('T')[0];
-  
-  // Adicionar div de feedback se não existir
+
+  // Adiciona feedback visual se não existir
   if (!document.getElementById('feedback-data')) {
     const feedbackDiv = document.createElement('div');
     feedbackDiv.id = 'feedback-data';
     inputData.parentNode.appendChild(feedbackDiv);
   }
-  
-  // Validar quando mudar
-  inputData.addEventListener('change', function() {
-    if (this.value) {
-      validarData(this);
+
+  // 🔄 Busca datas totalmente indisponíveis e aplica bloqueio
+  const datasIndisponiveis = await atualizarDatasIndisponiveis();
+  console.log('📅 Datas totalmente ocupadas:', datasIndisponiveis);
+
+  // Bloquear interação via eventos de input
+  inputData.addEventListener('input', function () {
+    if (datasIndisponiveis.includes(this.value)) {
+      this.value = '';
+      this.blur();
+
+      const feedbackDiv = document.getElementById('feedback-data');
+      if (feedbackDiv) {
+        feedbackDiv.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px; color: #ff6b6b; margin-top: 8px;">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="7" stroke="#ff6b6b" stroke-width="1.5"/>
+              <path d="M8 4V8M8 11H8.01" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Data indisponível para agendamento</span>
+          </div>
+        `;
+      }
     }
   });
-  
-  // Validar ao digitar (alguns navegadores permitem)
-  inputData.addEventListener('input', function() {
-    if (this.value.length === 10) {
-      validarData(this);
+
+  // 🔍 Validação de data ao mudar (seleção no calendário)
+  inputData.addEventListener('change', async function () {
+    if (this.value) {
+      if (datasIndisponiveis.includes(this.value)) {
+        this.value = '';
+        this.style.borderColor = '#ff6b6b';
+        this.style.backgroundColor = 'rgba(255, 107, 107, 0.05)';
+        if (feedbackDiv) {
+          feedbackDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px; color: #ff6b6b; margin-top: 8px;">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="#ff6b6b" stroke-width="1.5"/>
+                <path d="M8 4V8M8 11H8.01" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>Data indisponível para agendamento</span>
+            </div>
+          `;
+        }
+        return;
+      }
+      await validarData(this);
     }
   });
 }
