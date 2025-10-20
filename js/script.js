@@ -166,106 +166,106 @@ function setupTelefoneMask() {
 function setupFormAgendamento() {
     const form = document.getElementById('formAgendamento');
     if (!form) return;
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-            const btn = e.target.querySelector('.btn-submit');
-            const btnText = btn.querySelector('span');
-            const originalText = btnText.textContent;
+        const btn = e.target.querySelector('.btn-submit');
+        const btnText = btn.querySelector('span');
+        const originalText = btnText.textContent;
 
-            btnText.textContent = 'Enviando...';
-            btn.disabled = true;
+        btnText.textContent = 'Enviando...';
+        btn.disabled = true;
 
-            try {
-                const convenioSim = document.querySelector('input[name="convenio"]:checked').value === 'sim';
-                const nomeConvenio = convenioSim ? document.getElementById('nomeConvenio').value : 'Particular';
+        try {
+            const convenioSim = document.querySelector('input[name="convenio"]:checked').value === 'sim';
+            const nomeConvenio = convenioSim ? document.getElementById('nomeConvenio').value : 'Particular';
 
-                const formData = {
-                    nome: document.getElementById('nome').value,
-                    telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
-                    email: document.getElementById('email').value,
-                    convenio: nomeConvenio,
-                    dataPreferida: document.getElementById('data').value,
-                    horarioPreferido: document.getElementById('horario').value,
-                    sintomas: document.getElementById('sintomas').value || 'Não informado'
-                };
+            const formData = {
+                nome: document.getElementById('nome').value,
+                telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
+                email: document.getElementById('email').value,
+                convenio: nomeConvenio,
+                dataPreferida: document.getElementById('data').value,
+                horarioPreferido: document.getElementById('horario').value,
+                sintomas: document.getElementById('sintomas').value || 'Não informado'
+            };
 
-                console.log('📤 Enviando agendamento:', formData);
+            console.log('📤 Enviando agendamento:', formData);
 
-                const response = await fetch(CONFIG.webhookAgendar, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
-                });
+            const response = await fetch(CONFIG.webhookAgendar, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
 
-                console.log('📡 Status da resposta:', response.status);
-                console.log('📋 Headers:', [...response.headers.entries()]);
+            console.log('📡 Status da resposta:', response.status);
+            console.log('📋 Headers:', [...response.headers.entries()]);
 
-                if (response.status >= 200 && response.status < 300) {
-                    console.log('✅ Agendamento enviado com sucesso!');
+            if (response.status >= 200 && response.status < 300) {
+                console.log('✅ Agendamento enviado com sucesso!');
 
-                    let responseData = null;
-                    try {
-                        const text = await response.text();
-                        if (text && text.trim()) {
-                            responseData = JSON.parse(text);
-                            console.log('📦 Resposta do servidor:', responseData);
-                        }
-                    } catch (parseError) {
-                        console.log('⚠️ Resposta não é JSON, mas está OK:', parseError);
+                let responseData = null;
+                try {
+                    const text = await response.text();
+                    if (text && text.trim()) {
+                        responseData = JSON.parse(text);
+                        console.log('📦 Resposta do servidor:', responseData);
                     }
-
-                    showToast('✅ Agendamento realizado! Você receberá confirmação via WhatsApp.', 'success');
-
-                    // Limpar formulário
-                    e.target.reset();
-                    const sintomasIA = document.getElementById('sintomasIA');
-                    if (sintomasIA) sintomasIA.value = '';
-
-                    // Resetar horários
-                    const selectHorario = document.getElementById('horario');
-                    if (selectHorario) {
-                        selectHorario.innerHTML = '<option value="">Selecione primeiro uma data</option>';
-                        selectHorario.disabled = true;
-                    }
-
-                    // Limpar cache de horários
-                    if (window.validacaoHorarios) {
-                        window.validacaoHorarios.limparCache();
-                    }
-
-                    // Scroll suave para o topo — com proteção
-                    try {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    } catch (err) {
-                        console.warn('⚠️ Falha ao rolar para o topo:', err);
-                    }
-
-                } else {
-                    throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+                } catch (parseError) {
+                    console.log('⚠️ Resposta não é JSON, mas está OK:', parseError);
                 }
 
-            } catch (error) {
-                console.error('❌ Erro ao agendar:', error);
-                console.error('Detalhes:', error.message);
+                showToast('✅ Agendamento realizado! Você receberá confirmação via WhatsApp.', 'success');
 
-                let mensagemErro = 'Erro ao realizar agendamento. ';
-                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                    mensagemErro += 'Verifique sua conexão com a internet.';
-                } else if (error.message.includes('CORS')) {
-                    mensagemErro += 'Erro de configuração. Entre em contato com o suporte.';
-                } else {
-                    mensagemErro += 'Tente novamente ou ligue: (11) 3456-7890';
+                // Limpar formulário
+                e.target.reset();
+                const sintomasIA = document.getElementById('sintomasIA');
+                if (sintomasIA) sintomasIA.value = '';
+
+                // Resetar horários
+                const selectHorario = document.getElementById('horario');
+                if (selectHorario) {
+                    selectHorario.innerHTML = '<option value="">Selecione primeiro uma data</option>';
+                    selectHorario.disabled = true;
                 }
 
-                showToast('❌ ' + mensagemErro, 'error');
-            } finally {
-                btnText.textContent = originalText;
-                btn.disabled = false;
+                // Limpar cache de horários
+                if (window.validacaoHorarios) {
+                    window.validacaoHorarios.limparCache();
+                }
+
+                // Scroll suave para o topo — com proteção
+                try {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } catch (err) {
+                    console.warn('⚠️ Falha ao rolar para o topo:', err);
+                }
+
+            } else {
+                throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
             }
-        });
+
+        } catch (error) {
+            console.error('❌ Erro ao agendar:', error);
+            console.error('Detalhes:', error.message);
+
+            let mensagemErro = 'Erro ao realizar agendamento. ';
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                mensagemErro += 'Verifique sua conexão com a internet.';
+            } else if (error.message.includes('CORS')) {
+                mensagemErro += 'Erro de configuração. Entre em contato com o suporte.';
+            } else {
+                mensagemErro += 'Tente novamente ou ligue: (11) 3456-7890';
+            }
+
+            showToast('❌ ' + mensagemErro, 'error');
+        } finally {
+            btnText.textContent = originalText;
+            btn.disabled = false;
+        }
+    });
 
 }
 
@@ -273,31 +273,31 @@ function setupFormAgendamento() {
 // CONSULTAR AGENDAMENTO
 // ========================================
 function setupFormConsultar() {
-  const form = document.getElementById('formConsultar');
-  if (!form) return;
+    const form = document.getElementById('formConsultar');
+    if (!form) return;
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-    const nome = document.getElementById('consultarNome').value.trim();
-    const resultado = document.getElementById('resultadoConsulta');
+        const nome = document.getElementById('consultarNome').value.trim();
+        const resultado = document.getElementById('resultadoConsulta');
 
-    if (!nome) {
-      showToast('Por favor, insira seu nome completo.', 'error');
-      return;
-    }
+        if (!nome) {
+            showToast('Por favor, insira seu nome completo.', 'error');
+            return;
+        }
 
-    resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Consultando...</p></div>';
+        resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Consultando...</p></div>';
 
-    try {
-      const response = await fetch(`${CONFIG.webhookConsultar}?nome=${encodeURIComponent(nome)}`);
+        try {
+            const response = await fetch(`${CONFIG.webhookConsultar}?nome=${encodeURIComponent(nome)}`);
 
-      if (!response.ok) throw new Error('Erro ao consultar');
+            if (!response.ok) throw new Error('Erro ao consultar');
 
-      const data = await response.json();
+            const data = await response.json();
 
-      if (data.agendamentos && data.agendamentos.length > 0) {
-        resultado.innerHTML = data.agendamentos.map(ag => `
+            if (data.agendamentos && data.agendamentos.length > 0) {
+                resultado.innerHTML = data.agendamentos.map(ag => `
           <div class="credencial-item">
             <div class="credencial-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -312,8 +312,8 @@ function setupFormConsultar() {
             </div>
           </div>
         `).join('');
-      } else {
-        resultado.innerHTML = `
+            } else {
+                resultado.innerHTML = `
           <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
             <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin-bottom: 16px;">
               <circle cx="32" cy="32" r="30" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
@@ -322,16 +322,16 @@ function setupFormConsultar() {
             <p>Nenhum agendamento encontrado para esse nome.</p>
           </div>
         `;
-      }
-    } catch (error) {
-      console.error('Erro:', error);
-      resultado.innerHTML = `
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            resultado.innerHTML = `
         <div style="text-align: center; padding: 40px; color: #ff6b6b;">
           <p>Erro ao consultar agendamentos. Tente novamente.</p>
         </div>
       `;
-    }
-  });
+        }
+    });
 }
 
 // ========================================
@@ -364,6 +364,9 @@ async function obterDicas() {
 
         const data = await response.json();
         const dicasHTML = data.dicas || data.output || 'Não foi possível gerar orientações.';
+
+        // 🔧 Remover blocos markdown e limpar espaços extras
+        dicasHTML = dicasHTML.replace(/```html|```/g, '').trim();
 
         resultado.innerHTML = `
             <div style="margin-bottom: 24px;">
