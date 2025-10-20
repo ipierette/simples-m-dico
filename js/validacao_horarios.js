@@ -274,14 +274,20 @@ async function validarData(input) {
 }
 
 // ========================================
-// ⚡ Atualizar lista de datas totalmente ocupadas (14 dias, consultas paralelas)
+// ⚡ Atualizar lista de datas totalmente ocupadas (14 dias, paralelizada)
 // ========================================
 async function atualizarDatasIndisponiveis() {
   const hoje = new Date();
   const DIAS_A_VERIFICAR = 14;
   const datasIndisponiveis = new Set();
 
-  // 🔹 Gera as 14 datas futuras (ignorando fins de semana e feriados)
+  // 🔹 Lista base de horários disponíveis (igual à do <select>)
+  const HORARIOS_DISPONIVEIS = [
+    "08:00", "09:00", "10:00", "11:00",
+    "14:00", "15:00", "16:00", "17:00"
+  ];
+
+  // 🔹 Gera as 14 datas futuras válidas
   const datasValidas = [];
   for (let i = 0; i < DIAS_A_VERIFICAR; i++) {
     const data = new Date(hoje);
@@ -302,32 +308,36 @@ async function atualizarDatasIndisponiveis() {
     datasValidas.push(dataStr);
   }
 
-  // 🔹 Faz todas as consultas ao N8N em paralelo
-  try {
-    const resultados = await Promise.allSettled(
-      datasValidas.map(async dataStr => {
-        const ocupados = await buscarHorariosOcupados(dataStr);
-        return { dataStr, ocupados };
-      })
-    );
+  // 🔹 Consultas paralelas
+  const resultados = await Promise.allSettled(
+    datasValidas.map(async dataStr => {
+      const ocupados = await buscarHorariosOcupados(dataStr);
+      return { dataStr, ocupados };
+    })
+  );
 
-    // 🔹 Filtra as datas totalmente cheias
-    resultados.forEach(res => {
-      if (res.status === 'fulfilled') {
-        const { dataStr, ocupados } = res.value;
-        if (ocupados.length >= HORARIOS_DISPONIVEIS.length) {
-          datasIndisponiveis.add(dataStr);
-        }
-      } else {
-        console.warn('Erro ao verificar data:', res.reason);
+  // 🔹 Filtra somente as datas com TODOS os horários ocupados
+  resultados.forEach(res => {
+    if (res.status === 'fulfilled') {
+      const { dataStr, ocupados } = res.value;
+
+      // Normaliza o formato dos horários retornados (garante HH:mm)
+      const horariosOcupados = ocupados
+        .map(h => h.horario?.substring(0, 5))
+        .filter(Boolean);
+
+      const todosOcupados = HORARIOS_DISPONIVEIS.every(h =>
+        horariosOcupados.includes(h)
+      );
+
+      if (todosOcupados) {
+        datasIndisponiveis.add(dataStr);
       }
-    });
-  } catch (erro) {
-    console.error('Erro geral ao consultar horários:', erro);
-  }
+    }
+  });
 
   const lista = [...datasIndisponiveis];
-  console.log('📅 Datas indisponíveis (verificação paralela 14 dias):', lista);
+  console.log("📅 Datas realmente indisponíveis:", lista);
   return lista;
 }
 
@@ -400,6 +410,64 @@ async function configurarInputData() {
       await validarData(this);
     }
   });
+}
+
+// Quando a pessoa escolher uma data válida, atualiza os horários
+const inputData = document.querySelector("#data_preferida");
+if (inputData) {
+  inputData.addEventListener("change", async e => {
+    const dataSelecionada = e.target.value.split("/").reverse().join("-"); // converte para YYYY-MM-DD
+    await atualizarHorariosDisponiveis(dataSelecionada);
+  });
+}
+
+
+// ========================================
+// 🕒 Atualizar horários disponíveis ao selecionar uma data
+// ========================================
+async function atualizarHorariosDisponiveis(dataSelecionada) {
+  const selectHorario = document.querySelector("#horario_preferido");
+
+  // Selecione o <select> correto
+  if (!selectHorario) return;
+
+  // Limpa e recria o campo
+  selectHorario.innerHTML = '<option value="">Selecione um horário</option>';
+
+  // Lista base de horários (deve ser a mesma usada em HORARIOS_DISPONIVEIS)
+  const HORARIOS_DISPONIVEIS = [
+    "08:00", "09:00", "10:00", "11:00",
+    "14:00", "15:00", "16:00", "17:00"
+  ];
+
+  try {
+    const ocupados = await buscarHorariosOcupados(dataSelecionada);
+
+    // Extrai os horários ocupados (garante formato HH:mm)
+    const horariosOcupados = ocupados
+      .map(h => h.horario?.substring(0, 5))
+      .filter(Boolean);
+
+    // Cria as opções no select
+    HORARIOS_DISPONIVEIS.forEach(hora => {
+      const option = document.createElement("option");
+      option.value = hora;
+      option.textContent = hora;
+
+      // Marca os horários ocupados como desabilitados e visivelmente bloqueados
+      if (horariosOcupados.includes(hora)) {
+        option.disabled = true;
+        option.textContent = `${hora} — ocupado`;
+        option.style.color = "#ff6666";
+      }
+
+      selectHorario.appendChild(option);
+    });
+
+    console.log(`Horários ocupados para ${dataSelecionada}:`, horariosOcupados);
+  } catch (e) {
+    console.error("Erro ao atualizar horários disponíveis:", e);
+  }
 }
 
 // ========================================
