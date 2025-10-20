@@ -328,50 +328,87 @@ async function atualizarDatasIndisponiveis() {
 }
 
 // ========================================
-// 📅 BLOQUEAR DATAS NO CALENDÁRIO HTML5
+// 📅 BLOQUEAR DATAS NO CALENDÁRIO HTML5 (melhorado)
 // ========================================
 async function configurarInputData() {
   const inputData = document.getElementById('data');
   if (!inputData) return;
 
-  // Configura intervalo de 90 dias
+  // 🔹 Intervalo permitido: hoje até +90 dias
   const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
   inputData.min = hoje.toISOString().split('T')[0];
   const maxData = new Date();
   maxData.setDate(maxData.getDate() + 90);
   inputData.max = maxData.toISOString().split('T')[0];
 
-  // Adiciona feedback visual se não existir
-  if (!document.getElementById('feedback-data')) {
-    const feedbackDiv = document.createElement('div');
+  // 🔹 Área de feedback visual
+  let feedbackDiv = document.getElementById('feedback-data');
+  if (!feedbackDiv) {
+    feedbackDiv = document.createElement('div');
     feedbackDiv.id = 'feedback-data';
     inputData.parentNode.appendChild(feedbackDiv);
   }
 
-  // 🔄 Busca datas totalmente indisponíveis e aplica bloqueio
+  // 🔹 Carrega dias indisponíveis via n8n (14 dias à frente)
   const datasIndisponiveis = await atualizarDatasIndisponiveis();
-  console.log('📅 Datas totalmente ocupadas:', datasIndisponiveis);
+  console.log('📅 Datas realmente indisponíveis:', datasIndisponiveis);
 
-  // Bloquear interação via eventos de input
-  inputData.addEventListener('input', function () {
-    if (datasIndisponiveis.includes(this.value)) {
-      this.value = '';
-      this.blur();
-
-      const feedbackDiv = document.getElementById('feedback-data');
-      if (feedbackDiv) {
-        feedbackDiv.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 8px; color: #ff6b6b; margin-top: 8px;">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke="#ff6b6b" stroke-width="1.5"/>
-              <path d="M8 4V8M8 11H8.01" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span>Data indisponível para agendamento</span>
-          </div>
-        `;
-      }
+  // 🔸 Função utilitária local
+  const bloquear = (campo, msg) => {
+    campo.value = '';
+    campo.blur();
+    campo.style.borderColor = '#ff6b6b';
+    campo.style.backgroundColor = 'rgba(255, 107, 107, 0.05)';
+    if (feedbackDiv) {
+      feedbackDiv.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;color:#ff6b6b;margin-top:8px;">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" stroke="#ff6b6b" stroke-width="1.5"/>
+            <path d="M8 4V8M8 11H8.01" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>${msg}</span>
+        </div>
+      `;
     }
+  };
+
+  // 🔍 Quando o usuário digita manualmente uma data
+  inputData.addEventListener('input', function () {
+    const valor = this.value;
+    if (!valor) return;
+
+    const data = new Date(valor + 'T00:00:00');
+    const feriado = isFeriado(data);
+
+    if (data < hoje) return bloquear(this, 'Data já passou');
+    if (isFinalDeSemana(data)) return bloquear(this, 'Não atendemos aos finais de semana');
+    if (feriado.sim) return bloquear(this, `Feriado: ${feriado.nome}`);
+    if (datasIndisponiveis.includes(valor)) return bloquear(this, 'Data indisponível para agendamento');
+
+    // Se tudo certo, limpa feedback
+    this.style.borderColor = 'var(--accent-cyan)';
+    this.style.backgroundColor = 'transparent';
+    if (feedbackDiv) feedbackDiv.innerHTML = '';
   });
+
+  // 🔍 Quando o usuário seleciona uma data no calendário
+  inputData.addEventListener('change', async function () {
+    const valor = this.value;
+    if (!valor) return;
+
+    const data = new Date(valor + 'T00:00:00');
+    const feriado = isFeriado(data);
+
+    if (data < hoje) return bloquear(this, 'Data já passou');
+    if (isFinalDeSemana(data)) return bloquear(this, 'Não atendemos aos finais de semana');
+    if (feriado.sim) return bloquear(this, `Feriado: ${feriado.nome}`);
+    if (datasIndisponiveis.includes(valor)) return bloquear(this, 'Data indisponível para agendamento');
+
+    // Caso a data seja válida → valida no n8n
+    await validarData(this);
+  });
+}
 
   // 🔍 Validação de data ao mudar (seleção no calendário)
   inputData.addEventListener('change', async function () {
