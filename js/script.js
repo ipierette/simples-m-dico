@@ -8,12 +8,82 @@ const CONFIG = {
     webhookDicas: 'https://solitaryhornet-n8n.cloudfy.live/webhook/dicas-saude'
 };
 
+// ========================================
+// MENU MOBILE - CORRIGIDO
+// ========================================
+function toggleMobileMenu() {
+    const menu = document.querySelector('.nav-menu');
+    const toggle = document.querySelector('.mobile-menu-toggle');
+    const overlay = document.querySelector('.mobile-overlay');
+    
+    menu.classList.toggle('active');
+    toggle.classList.toggle('active');
+    
+    if (overlay) {
+        overlay.classList.toggle('active');
+    }
+    
+    // Previne scroll do body quando menu está aberto
+    if (menu.classList.contains('active')) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = '';
+    }
+}
+
+// Fechar menu ao clicar no overlay
+function setupMobileOverlay() {
+    let overlay = document.querySelector('.mobile-overlay');
+    
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'mobile-overlay';
+        document.body.appendChild(overlay);
+    }
+    
+    overlay.addEventListener('click', toggleMobileMenu);
+}
+
+// Fechar menu ao clicar em um link
+function setupMobileLinks() {
+    const links = document.querySelectorAll('.nav-link');
+    links.forEach(link => {
+        link.addEventListener('click', () => {
+            const menu = document.querySelector('.nav-menu');
+            if (menu.classList.contains('active')) {
+                toggleMobileMenu();
+            }
+        });
+    });
+}
+
+// ========================================
+// HEADER SCROLL EFFECT
+// ========================================
+function setupHeaderScroll() {
+    const header = document.querySelector('.header');
+    let lastScroll = 0;
+    
+    window.addEventListener('scroll', () => {
+        const currentScroll = window.pageYOffset;
+        
+        if (currentScroll > 50) {
+            header.classList.add('scrolled');
+        } else {
+            header.classList.remove('scrolled');
+        }
+        
+        lastScroll = currentScroll;
+    });
+}
+
+// ========================================
+// NAVEGAÇÃO E SCROLL
+// ========================================
 function scrollToAgendamento() {
     const el = document.getElementById('agendamento');
     if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-        console.warn('⚠️ scrollToAgendamento ignorado: elemento #agendamento não encontrado.');
     }
 }
 
@@ -21,36 +91,31 @@ function scrollTo(id) {
     const el = document.getElementById(id);
     if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-        console.warn(`⚠️ scrollTo ignorado: elemento com id "${id}" não encontrado.`);
     }
 }
 
 // Adicionar classe active nos links de navegação ao scroll
-window.addEventListener('scroll', () => {
+function setupActiveLinks() {
     const sections = document.querySelectorAll('section[id]');
-    const scrollY = window.pageYOffset;
+    
+    window.addEventListener('scroll', () => {
+        const scrollY = window.pageYOffset;
 
-    sections.forEach(section => {
-        const sectionHeight = section.offsetHeight;
-        const sectionTop = section.offsetTop - 100;
-        const sectionId = section.getAttribute('id');
+        sections.forEach(section => {
+            const sectionHeight = section.offsetHeight;
+            const sectionTop = section.offsetTop - 150;
+            const sectionId = section.getAttribute('id');
 
-        if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-                if (link.getAttribute('href') === `#${sectionId}`) {
-                    link.classList.add('active');
-                }
-            });
-        }
+            if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === `#${sectionId}`) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+        });
     });
-});
-
-// Toggle mobile menu
-function toggleMobileMenu() {
-    const menu = document.querySelector('.nav-menu');
-    menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
 }
 
 // ========================================
@@ -79,7 +144,6 @@ function setupFieldSync() {
 
     if (!sintomasAgendamento || !sintomasIA) return;
 
-    // Sincronizar Agendamento → IA
     sintomasAgendamento.addEventListener('input', (e) => {
         if (!syncInProgress) {
             syncInProgress = true;
@@ -88,7 +152,6 @@ function setupFieldSync() {
         }
     });
 
-    // Sincronizar IA → Agendamento
     sintomasIA.addEventListener('input', (e) => {
         if (!syncInProgress) {
             syncInProgress = true;
@@ -480,13 +543,21 @@ function setupValidation() {
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Sistema carregado - Conectado ao N8N');
-    console.log('📡 Webhook Agendar:', CONFIG.webhookAgendar);
-
+    
+    // Navegação
+    setupHeaderScroll();
+    setupActiveLinks();
+    setupMobileOverlay();
+    setupMobileLinks();
+    
+    // Formulários
     setupFieldSync();
     setupConvenio();
     setupTelefoneMask();
     setupFormAgendamento();
     setupFormConsultar();
+    
+    // UI
     setupAnimations();
     setupValidation();
 });

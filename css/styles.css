@@ -58,31 +58,46 @@ body {
 /* ========================================
    HEADER & NAVIGATION
 ======================================== */
+/* ========================================
+   HEADER & NAVIGATION - MELHORADO
+======================================== */
 .header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     z-index: 1000;
-    background: rgba(10, 14, 39, 0.8);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    transition: var(--transition-normal);
+    background: rgba(10, 14, 39, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s ease;
+}
+
+.header.scrolled {
+    background: rgba(10, 14, 39, 0.95);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .nav-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 16px 32px;
+    padding: 20px 32px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    transition: padding 0.3s ease;
+}
+
+.header.scrolled .nav-container {
+    padding: 16px 32px;
 }
 
 .logo {
     display: flex;
     align-items: center;
     gap: 12px;
+    z-index: 1001;
 }
 
 .logo-icon {
@@ -107,20 +122,23 @@ body {
     display: flex;
     list-style: none;
     gap: 32px;
+    align-items: center;
 }
 
 .nav-link {
     color: var(--text-secondary);
     text-decoration: none;
     font-weight: 500;
+    font-size: 0.95rem;
     position: relative;
     transition: var(--transition-fast);
+    padding: 8px 4px;
 }
 
 .nav-link::after {
     content: '';
     position: absolute;
-    bottom: -4px;
+    bottom: 0;
     left: 0;
     width: 0;
     height: 2px;
@@ -148,32 +166,180 @@ body {
     border: none;
     border-radius: 12px;
     font-weight: 600;
+    font-size: 0.95rem;
     cursor: pointer;
-    transition: var(--transition-fast);
-    box-shadow: var(--shadow-glow);
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
 }
 
 .btn-agendar-header:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 30px rgba(0, 212, 170, 0.5);
+    box-shadow: 0 4px 30px rgba(0, 212, 170, 0.5);
 }
 
+.btn-agendar-header:active {
+    transform: translateY(0);
+}
+
+/* ========================================
+   MENU MOBILE - CORRIGIDO
+======================================== */
 .mobile-menu-toggle {
     display: none;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
     background: none;
     border: none;
     cursor: pointer;
+    padding: 8px;
+    z-index: 1001;
+    transition: all 0.3s ease;
 }
 
 .mobile-menu-toggle span {
-    width: 24px;
-    height: 2px;
+    width: 26px;
+    height: 2.5px;
     background: var(--text-primary);
-    transition: var(--transition-fast);
+    transition: all 0.3s ease;
+    border-radius: 2px;
 }
 
+.mobile-menu-toggle.active span:nth-child(1) {
+    transform: rotate(45deg) translate(7px, 7px);
+}
+
+.mobile-menu-toggle.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.mobile-menu-toggle.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -7px);
+}
+
+/* Overlay do menu mobile */
+.mobile-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.mobile-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* ========================================
+   RESPONSIVE - MELHORADO
+======================================== */
+@media (max-width: 1024px) {
+    .nav-menu {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        height: 100vh;
+        width: 320px;
+        max-width: 85vw;
+        flex-direction: column;
+        gap: 0;
+        background: rgba(10, 14, 39, 0.98);
+        backdrop-filter: blur(20px);
+        padding: 100px 32px 32px;
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+        transition: right 0.3s ease;
+        overflow-y: auto;
+        z-index: 1000;
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .nav-menu.active {
+        right: 0;
+    }
+    
+    .nav-menu li {
+        width: 100%;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .nav-link {
+        display: block;
+        width: 100%;
+        padding: 20px 12px;
+        font-size: 1.1rem;
+        color: var(--text-primary);
+    }
+    
+    .nav-link::after {
+        display: none;
+    }
+    
+    .nav-link.active {
+        color: var(--accent-cyan);
+        background: rgba(0, 212, 170, 0.08);
+        border-radius: 8px;
+    }
+    
+    .btn-agendar-header {
+        display: none;
+    }
+    
+    .mobile-menu-toggle {
+        display: flex;
+    }
+    
+    .nav-container {
+        padding: 16px 24px;
+    }
+    
+    /* Botão "Agendar" dentro do menu mobile */
+    .nav-menu::after {
+        content: 'Agendar Consulta';
+        display: block;
+        margin-top: 24px;
+        padding: 16px 24px;
+        background: var(--gradient-primary);
+        color: white;
+        text-align: center;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3);
+    }
+}
+
+@media (max-width: 768px) {
+    .nav-container {
+        padding: 16px 20px;
+    }
+    
+    .logo-text {
+        font-size: 1.1rem;
+    }
+    
+    .logo-icon svg {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-menu {
+        width: 280px;
+    }
+    
+    .nav-link {
+        font-size: 1rem;
+        padding: 18px 12px;
+    }
+}
 /* ========================================
    HERO SECTION
 ======================================== */
@@ -987,10 +1153,7 @@ body {
    RESPONSIVE
 ======================================== */
 @media (max-width: 1024px) {
-    .nav-menu {
-        display: none;
-    }
-    
+
     .mobile-menu-toggle {
         display: flex;
     }
