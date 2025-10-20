@@ -433,7 +433,6 @@ async function configurarInputData() {
       await validarData(this);
     }
   });
-}
 
 // 🎯 Atualiza horários automaticamente ao escolher a data
 document.addEventListener('DOMContentLoaded', () => {
