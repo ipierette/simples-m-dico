@@ -274,70 +274,56 @@ async function validarData(input) {
 }
 
 // ========================================
-// ⚡ Atualizar lista de datas totalmente ocupadas (14 dias, paralelizada)
+// ⚡ Atualizar lista de datas totalmente ocupadas (14 dias, paralelo)
 // ========================================
 async function atualizarDatasIndisponiveis() {
   const hoje = new Date();
   const DIAS_A_VERIFICAR = 14;
   const datasIndisponiveis = new Set();
 
-  // 🔹 Lista base de horários disponíveis (igual à do <select>)
+  // Fonte única de verdade para comparação (mesmo set do <select>)
   const HORARIOS_DISPONIVEIS = [
     "08:00", "09:00", "10:00", "11:00",
     "14:00", "15:00", "16:00", "17:00"
   ];
 
-  // 🔹 Gera as 14 datas futuras válidas
+  // Monta a lista de datas úteis (já pula fds/feriados)
   const datasValidas = [];
   for (let i = 0; i < DIAS_A_VERIFICAR; i++) {
-    const data = new Date(hoje);
-    data.setDate(hoje.getDate() + i);
-    const dataStr = data.toISOString().split('T')[0];
+    const d = new Date(hoje);
+    d.setDate(hoje.getDate() + i);
+    const iso = d.toISOString().split('T')[0];
 
-    if (isFinalDeSemana(data)) {
-      datasIndisponiveis.add(dataStr);
+    if (isFinalDeSemana(d)) {
+      datasIndisponiveis.add(iso);
       continue;
     }
-
-    const feriado = isFeriado(data);
+    const feriado = isFeriado(d);
     if (feriado.sim) {
-      datasIndisponiveis.add(dataStr);
+      datasIndisponiveis.add(iso);
       continue;
     }
-
-    datasValidas.push(dataStr);
+    datasValidas.push(iso);
   }
 
-  // 🔹 Consultas paralelas
+  // Consulta paralela ao n8n
   const resultados = await Promise.allSettled(
-    datasValidas.map(async dataStr => {
-      const ocupados = await buscarHorariosOcupados(dataStr);
-      return { dataStr, ocupados };
+    datasValidas.map(async iso => {
+      const ocup = await buscarHorariosOcupados(iso); // já retorna ["HH:MM", ...]
+      return { iso, ocup };
     })
   );
 
-  // 🔹 Filtra somente as datas com TODOS os horários ocupados
-  resultados.forEach(res => {
-    if (res.status === 'fulfilled') {
-      const { dataStr, ocupados } = res.value;
-
-      // Normaliza o formato dos horários retornados (garante HH:mm)
-      const horariosOcupados = ocupados
-        .map(h => h.horario?.substring(0, 5))
-        .filter(Boolean);
-
-      const todosOcupados = HORARIOS_DISPONIVEIS.every(h =>
-        horariosOcupados.includes(h)
-      );
-
-      if (todosOcupados) {
-        datasIndisponiveis.add(dataStr);
-      }
-    }
+  // Só marca como indisponível se TODOS os horários estiverem ocupados
+  resultados.forEach(r => {
+    if (r.status !== 'fulfilled') return;
+    const { iso, ocup } = r.value;
+    const todosOcupados = HORARIOS_DISPONIVEIS.every(h => ocup.includes(h));
+    if (todosOcupados) datasIndisponiveis.add(iso);
   });
 
   const lista = [...datasIndisponiveis];
-  console.log("📅 Datas realmente indisponíveis:", lista);
+  console.log('📅 Datas realmente indisponíveis:', lista);
   return lista;
 }
 
@@ -412,15 +398,18 @@ async function configurarInputData() {
   });
 }
 
-// Quando a pessoa escolher uma data válida, atualiza os horários
-const inputData = document.querySelector("#data_preferida");
-if (inputData) {
-  inputData.addEventListener("change", async e => {
-    const dataSelecionada = e.target.value.split("/").reverse().join("-"); // converte para YYYY-MM-DD
-    await atualizarHorariosDisponiveis(dataSelecionada);
-  });
-}
-
+// 🎯 Atualiza horários automaticamente ao escolher a data
+document.addEventListener('DOMContentLoaded', () => {
+  const inputData = document.getElementById('data');
+  if (inputData) {
+    inputData.addEventListener('change', async (e) => {
+      const iso = e.target.value; // input type="date" já está em YYYY-MM-DD
+      if (iso) {
+        await atualizarHorarios(iso);
+      }
+    });
+  }
+});
 
 // ========================================
 // 🕒 Atualizar horários disponíveis ao selecionar uma data
@@ -440,33 +429,68 @@ async function atualizarHorariosDisponiveis(dataSelecionada) {
     "14:00", "15:00", "16:00", "17:00"
   ];
 
+// ===============================
+// 🔎 Buscar horários ocupados (parse seguro)
+// ===============================
+const CACHE_OCUPADOS = new Map(); // evita chamadas repetidas no mesmo dia
+
+async function buscarHorariosOcupados(dataISO) {
+  if (!dataISO) return [];
+
+  // Cache local por data
+  if (CACHE_OCUPADOS.has(dataISO)) {
+    return CACHE_OCUPADOS.get(dataISO);
+  }
+
+  const url = `${CONFIG.webhookConsultarOcupados}?data=${encodeURIComponent(dataISO)}`;
+
   try {
-    const ocupados = await buscarHorariosOcupados(dataSelecionada);
+    const res = await fetch(url, { method: 'GET' });
 
-    // Extrai os horários ocupados (garante formato HH:mm)
-    const horariosOcupados = ocupados
-      .map(h => h.horario?.substring(0, 5))
-      .filter(Boolean);
+    // HTTP não-OK → não considerar como lotado; apenas retornar vazio
+    if (!res.ok) {
+      console.warn('⚠️ HTTP não OK em consultar horários:', res.status, dataISO);
+      CACHE_OCUPADOS.set(dataISO, []);
+      return [];
+    }
 
-    // Cria as opções no select
-    HORARIOS_DISPONIVEIS.forEach(hora => {
-      const option = document.createElement("option");
-      option.value = hora;
-      option.textContent = hora;
+    // Alguns proxies podem retornar corpo vazio → tratar
+    const text = await res.text();
+    if (!text) {
+      console.warn('⚠️ Corpo vazio para', dataISO);
+      CACHE_OCUPADOS.set(dataISO, []);
+      return [];
+    }
 
-      // Marca os horários ocupados como desabilitados e visivelmente bloqueados
-      if (horariosOcupados.includes(hora)) {
-        option.disabled = true;
-        option.textContent = `${hora} — ocupado`;
-        option.style.color = "#ff6666";
-      }
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (e) {
+      console.warn('⚠️ Falha ao parsear JSON para', dataISO, '→', e);
+      CACHE_OCUPADOS.set(dataISO, []);
+      return [];
+    }
 
-      selectHorario.appendChild(option);
-    });
+    // O seu n8n pode devolver { ocupados:[{data,horario}...], horarios:[...], total:n }
+    const listFromOcupados = Array.isArray(json?.ocupados)
+      ? json.ocupados
+          .map(o => (typeof o === 'string' ? o : o?.horario))
+          .filter(Boolean)
+      : [];
 
-    console.log(`Horários ocupados para ${dataSelecionada}:`, horariosOcupados);
-  } catch (e) {
-    console.error("Erro ao atualizar horários disponíveis:", e);
+    const listFromHorarios = Array.isArray(json?.horarios) ? json.horarios : [];
+
+    // normaliza para "HH:MM"
+    const horas = (listFromHorarios.length ? listFromHorarios : listFromOcupados)
+      .filter(Boolean)
+      .map(h => String(h).slice(0, 5));
+
+    CACHE_OCUPADOS.set(dataISO, horas);
+    return horas;
+  } catch (err) {
+    console.error('❌ Erro de rede ao consultar horários ocupados:', err);
+    CACHE_OCUPADOS.set(dataISO, []);
+    return [];
   }
 }
 
