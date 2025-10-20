@@ -273,62 +273,65 @@ function setupFormAgendamento() {
 // CONSULTAR AGENDAMENTO
 // ========================================
 function setupFormConsultar() {
-    const form = document.getElementById('formConsultar');
-    if (!form) return;
+  const form = document.getElementById('formConsultar');
+  if (!form) return;
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-        const telefone = document.getElementById('consultarTelefone').value.replace(/\D/g, '');
-        const resultado = document.getElementById('resultadoConsulta');
+    const nome = document.getElementById('consultarNome').value.trim();
+    const resultado = document.getElementById('resultadoConsulta');
 
-        resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Consultando...</p></div>';
+    if (!nome) {
+      showToast('Por favor, insira seu nome completo.', 'error');
+      return;
+    }
 
-        try {
-            const response = await fetch(`${CONFIG.webhookConsultar}?telefone=${encodeURIComponent(telefone)}`);
+    resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Consultando...</p></div>';
 
-            if (!response.ok) {
-                throw new Error('Erro ao consultar');
-            }
+    try {
+      const response = await fetch(`${CONFIG.webhookConsultar}?nome=${encodeURIComponent(nome)}`);
 
-            const data = await response.json();
+      if (!response.ok) throw new Error('Erro ao consultar');
 
-            if (data.agendamentos && data.agendamentos.length > 0) {
-                resultado.innerHTML = data.agendamentos.map(ag => `
-                    <div class="credencial-item">
-                        <div class="credencial-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                <rect x="3" y="4" width="18" height="18" rx="2" stroke="#00d4aa" stroke-width="2" fill="none"/>
-                                <path d="M8 2V6M16 2V6M3 10H21" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <div class="credencial-title">${formatarData(ag.data_preferida)} às ${ag.horario_preferido}</div>
-                            <div class="credencial-desc">Paciente: ${ag.nome}</div>
-                            <div class="credencial-desc">Convênio: ${ag.convenio || 'Particular'}</div>
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                resultado.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
-                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin-bottom: 16px;">
-                            <circle cx="32" cy="32" r="30" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
-                            <path d="M32 20V34M32 42H32.02" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
-                        </svg>
-                        <p>Nenhum agendamento encontrado para este telefone.</p>
-                    </div>
-                `;
-            }
-        } catch (error) {
-            console.error('Erro:', error);
-            resultado.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #ff6b6b;">
-                    <p>Erro ao consultar agendamentos. Tente novamente.</p>
-                </div>
-            `;
-        }
-    });
+      const data = await response.json();
+
+      if (data.agendamentos && data.agendamentos.length > 0) {
+        resultado.innerHTML = data.agendamentos.map(ag => `
+          <div class="credencial-item">
+            <div class="credencial-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="4" width="18" height="18" rx="2" stroke="#00d4aa" stroke-width="2" fill="none"/>
+                <path d="M8 2V6M16 2V6M3 10H21" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="credencial-title">${formatarData(ag.data_preferida)} às ${ag.horario_preferido}</div>
+              <div class="credencial-desc">Paciente: ${ag.nome}</div>
+              <div class="credencial-desc">Convênio: ${ag.convenio || 'Particular'}</div>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        resultado.innerHTML = `
+          <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin-bottom: 16px;">
+              <circle cx="32" cy="32" r="30" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+              <path d="M32 20V34M32 42H32.02" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <p>Nenhum agendamento encontrado para esse nome.</p>
+          </div>
+        `;
+      }
+    } catch (error) {
+      console.error('Erro:', error);
+      resultado.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #ff6b6b;">
+          <p>Erro ao consultar agendamentos. Tente novamente.</p>
+        </div>
+      `;
+    }
+  });
 }
 
 // ========================================
