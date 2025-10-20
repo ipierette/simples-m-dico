@@ -530,3 +530,4 @@ window.validacaoHorarios = {
   validarData,
   limparCache
 };
+}
