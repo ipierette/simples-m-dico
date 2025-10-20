@@ -166,17 +166,6 @@ function setupTelefoneMask() {
 function setupFormAgendamento() {
     const form = document.getElementById('formAgendamento');
     if (!form) return;
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const btn = e.target.querySelector('.btn-submit');
-        const btnText = btn.querySelector('span');
-        const originalText = btnText.textContent;
-
-        btnText.textContent = 'Enviando...';
-        btn.disabled = true;
-
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -278,7 +267,6 @@ function setupFormAgendamento() {
             }
         });
 
-    });
 }
 
 // ========================================
