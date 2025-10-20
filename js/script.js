@@ -285,7 +285,7 @@ function setupFormConsultar() {
         resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Consultando...</p></div>';
 
         try {
-            const response = await fetch(`${CONFIG.webhookConsultar}?nome=${encodeURIComponent(telefone)}`);
+            const response = await fetch(`${CONFIG.webhookConsultar}?telefone=${encodeURIComponent(telefone)}`);
 
             if (!response.ok) {
                 throw new Error('Erro ao consultar');
