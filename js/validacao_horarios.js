@@ -156,31 +156,71 @@ async function atualizarHorarios(dataISO) {
   try {
     const horariosOcupados = await buscarHorariosOcupados(dataISO);
 
-    // Se todos ocupados → dia cheio (tratado também no calendário)
-    const todosOcupados = HORARIOS_DISPONIVEIS.every(h => horariosOcupados.includes(h));
-    if (todosOcupados) {
+    // 🔹 Verifica se é HOJE e pega hora atual (timezone MS)
+    const hoje = new Date().toLocaleDateString('en-CA'); // formato YYYY-MM-DD
+    const isHoje = (dataISO === hoje);
+
+    let horaAtualMinutos = 0;
+    if (isHoje) {
+      const agora = new Date().toLocaleTimeString('pt-BR', {
+        timeZone: 'America/Campo_Grande',
+        hour12: false
+      });
+      const [h, m] = agora.split(':').map(Number);
+      horaAtualMinutos = (h * 60) + m;
+      console.log(`⏰ Hora atual (MS): ${agora} (${horaAtualMinutos} minutos)`);
+    }
+
+    // 🔹 Filtra horários: ocupados + passados
+    const horariosIndisponiveis = new Set(horariosOcupados);
+
+    if (isHoje) {
+      HORARIOS_DISPONIVEIS.forEach(hora => {
+        const [h, m] = hora.split(':').map(Number);
+        const horarioMinutos = (h * 60) + m;
+
+        if (horarioMinutos <= horaAtualMinutos) {
+          horariosIndisponiveis.add(hora);
+        }
+      });
+    }
+
+    // Se todos indisponíveis → dia cheio
+    const todosIndisponiveis = HORARIOS_DISPONIVEIS.every(h => horariosIndisponiveis.has(h));
+    if (todosIndisponiveis) {
       selectHorario.innerHTML = '<option value="">Nenhum horário disponível</option>';
       if (feedbackDiv) {
+        const motivo = isHoje ? 'todos os horários já passaram ou estão ocupados' : 'todos os horários estão ocupados';
         feedbackDiv.innerHTML = `
           <div style="display:flex;align-items:center;gap:8px;color:#ff6b6b;margin-top:8px;">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="7" stroke="#ff6b6b" stroke-width="1.5"/>
               <path d="M8 4V8M8 11H8.01" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
             </svg>
-            <span>Data indisponível: todos os horários estão ocupados</span>
+            <span>Data indisponível: ${motivo}</span>
           </div>
         `;
       }
       return;
     }
 
-    // Recria as opções, marcando ocupados
+    // Recria as opções, marcando ocupados e passados
     selectHorario.innerHTML = '<option value="">Selecione um horário</option>';
     HORARIOS_DISPONIVEIS.forEach(hora => {
       const opt = document.createElement('option');
       opt.value = hora;
 
-      if (horariosOcupados.includes(hora)) {
+      const [h, m] = hora.split(':').map(Number);
+      const horarioMinutos = (h * 60) + m;
+      const jaPassou = isHoje && horarioMinutos <= horaAtualMinutos;
+      const ocupado = horariosOcupados.includes(hora);
+
+      if (jaPassou) {
+        opt.textContent = `${hora} — já passou`;
+        opt.disabled = true;
+        opt.style.color = '#888';
+        opt.style.fontStyle = 'italic';
+      } else if (ocupado) {
         opt.textContent = `${hora} — ocupado`;
         opt.disabled = true;
         opt.style.color = '#ff6b6b';
