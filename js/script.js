@@ -282,6 +282,11 @@ function setupFormAgendamento() {
 
                     showToast('✅ Agendamento realizado! Você receberá confirmação via WhatsApp.', 'success');
 
+                    // Refresh automático dos horários ocupados
+                    if (window.validacaoHorarios) {
+                        await window.validacaoHorarios.refreshHorariosAposAgendamento();
+                    }
+
                     // Limpar formulário
                     e.target.reset();
                     const sintomasIA = document.getElementById('sintomasIA');
@@ -292,11 +297,6 @@ function setupFormAgendamento() {
                     if (selectHorario) {
                         selectHorario.innerHTML = '<option value="">Selecione primeiro uma data</option>';
                         selectHorario.disabled = true;
-                    }
-
-                    // Limpar cache de horários
-                    if (window.validacaoHorarios) {
-                        window.validacaoHorarios.limparCache();
                     }
 
                     // Scroll suave para o topo — com proteção
