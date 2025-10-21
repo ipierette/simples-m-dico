@@ -1,23 +1,7 @@
 // ========================================
-// CONFIGURAÇÕES - Carrega do config.js
+// CONFIGURAÇÕES - Usa CONFIG global de config.js
 // ========================================
-const CLINIC_CONF = window.CLINIC_CONFIG || {
-    n8n: {
-        baseUrl: 'https://solitaryhornet-n8n.cloudfy.live/webhook',
-        endpoints: {
-            agendar: '/agendar-consulta',
-            consultar: '/consultar-agendamento',
-            dicas: '/dicas-saude'
-        }
-    }
-};
-
-const CONFIG = {
-    n8nBase: CLINIC_CONF.n8n.baseUrl,
-    webhookAgendar: `${CLINIC_CONF.n8n.baseUrl}${CLINIC_CONF.n8n.endpoints.agendar}`,
-    webhookConsultar: `${CLINIC_CONF.n8n.baseUrl}${CLINIC_CONF.n8n.endpoints.consultar}`,
-    webhookDicas: `${CLINIC_CONF.n8n.baseUrl}${CLINIC_CONF.n8n.endpoints.dicas}`
-};
+// CONFIG é definido em config.js como window.CONFIG
 
 // ========================================
 // MENU MOBILE - CORRIGIDO
@@ -279,7 +263,7 @@ function setupFormAgendamento() {
 
                 console.log('📤 Enviando agendamento:', formData);
 
-                const response = await fetch(CONFIG.webhookAgendar, {
+                const response = await fetch(window.CONFIG.webhookAgendar, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -377,7 +361,7 @@ function setupFormConsultar() {
     resultado.innerHTML = '<div class="dicas-loading"><div class="spinner"></div><p>Consultando...</p></div>';
 
     try {
-      const response = await fetch(`${CONFIG.webhookConsultar}?nome=${encodeURIComponent(nome)}`);
+      const response = await fetch(`${window.CONFIG.webhookConsultar}?nome=${encodeURIComponent(nome)}`);
 
       if (!response.ok) throw new Error('Erro ao consultar');
 
@@ -432,7 +416,7 @@ async function obterDicas() {
     const btn = document.getElementById('btnObterDicas');
 
     console.log('📝 Sintomas:', sintomas);
-    console.log('🔗 Webhook URL:', CONFIG.webhookDicas);
+    console.log('🔗 Webhook URL:', window.CONFIG.webhookDicas);
 
     if (!sintomas) {
         showToast('Por favor, descreva seus sintomas antes de solicitar dicas.', 'error');
@@ -444,7 +428,7 @@ async function obterDicas() {
     btn.disabled = true;
 
     try {
-        const response = await fetch(CONFIG.webhookDicas, {
+        const response = await fetch(window.CONFIG.webhookDicas, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

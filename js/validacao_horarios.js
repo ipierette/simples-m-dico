@@ -1,28 +1,19 @@
 /* =========================================================================
-   CONFIG – Carrega configurações centralizadas
+   CONFIG – Usa configurações centralizadas de config.js
    ========================================================================= */
-// Aguarda que config.js seja carregado primeiro (via script tag no HTML)
-const CONFIG = window.CLINIC_CONFIG || {
-  n8n: {
-    baseUrl: 'https://solitaryhornet-n8n.cloudfy.live/webhook',
-    endpoints: { horariosOcupados: '/consultar-horarios-ocupados' }
-  },
-  horarios: ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'],
-  timezone: null,
-  timezoneFallback: 'America/Campo_Grande'
-};
+// CONFIG é definido globalmente em config.js como window.CONFIG
 
-const N8N_BASE_URL = CONFIG.n8n.baseUrl;
-const N8N_HORARIOS_OCUPADOS = `${N8N_BASE_URL}${CONFIG.n8n.endpoints.horariosOcupados}`;
+const N8N_BASE_URL = window.window.CONFIG.n8nBase;
+const N8N_HORARIOS_OCUPADOS = window.window.CONFIG.webhookHorariosOcupados;
 
 /* =========================================================================
    CONFIG – TIMEZONE (detecção automática ou forçado)
    ========================================================================= */
 function detectarTimezone() {
   // Se há timezone forçado na config, usa ele
-  if (CONFIG.timezone) {
-    console.log(`🌍 Timezone forçado pela configuração: ${CONFIG.timezone}`);
-    return CONFIG.timezone;
+  if (window.CONFIG.timezone) {
+    console.log(`🌍 Timezone forçado pela configuração: ${window.CONFIG.timezone}`);
+    return window.CONFIG.timezone;
   }
 
   try {
@@ -38,7 +29,7 @@ function detectarTimezone() {
   }
 
   // Fallback da configuração
-  const fallback = CONFIG.timezoneFallback;
+  const fallback = window.CONFIG.timezoneFallback;
   console.log(`🌍 Usando timezone fallback: ${fallback}`);
   return fallback;
 }
@@ -49,7 +40,7 @@ const TIMEZONE_LOCAL = detectarTimezone();
 /* =========================================================================
    Regras de negócio – horários disponíveis por dia
    ========================================================================= */
-const HORARIOS_DISPONIVEIS = CONFIG.horarios;
+const HORARIOS_DISPONIVEIS = window.CONFIG.horarios;
 
 /* =========================================================================
    Feriados (fixos e móveis) + utilitários de data

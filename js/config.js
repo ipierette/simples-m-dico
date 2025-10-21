@@ -85,6 +85,21 @@ const CLINIC_CONFIG = {
 // ====================================
 window.CLINIC_CONFIG = CLINIC_CONFIG;
 
+// Criar CONFIG global para uso nos scripts
+window.CONFIG = {
+  // Webhooks
+  n8nBase: CLINIC_CONFIG.n8n.baseUrl,
+  webhookAgendar: `${CLINIC_CONFIG.n8n.baseUrl}${CLINIC_CONFIG.n8n.endpoints.agendar}`,
+  webhookConsultar: `${CLINIC_CONFIG.n8n.baseUrl}${CLINIC_CONFIG.n8n.endpoints.consultar}`,
+  webhookHorariosOcupados: `${CLINIC_CONFIG.n8n.baseUrl}${CLINIC_CONFIG.n8n.endpoints.horariosOcupados}`,
+  webhookDicas: `${CLINIC_CONFIG.n8n.baseUrl}${CLINIC_CONFIG.n8n.endpoints.dicas}`,
+
+  // Configurações diretas
+  horarios: CLINIC_CONFIG.horarios,
+  timezone: CLINIC_CONFIG.timezone,
+  timezoneFallback: CLINIC_CONFIG.timezoneFallback
+};
+
 // Log de inicialização
 console.log('⚙️ Configuração carregada:', {
   clinica: CLINIC_CONFIG.nome,
