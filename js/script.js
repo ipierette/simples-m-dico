@@ -153,9 +153,17 @@ function setupFieldSync() {
     const sintomasAgendamento = document.getElementById('sintomas');
     const sintomasIA = document.getElementById('sintomasIA');
 
-    if (!sintomasAgendamento || !sintomasIA) return;
+    console.log('🔍 Configurando sincronização...');
+    console.log('  - Campo agendamento:', sintomasAgendamento ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
+    console.log('  - Campo IA:', sintomasIA ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
+
+    if (!sintomasAgendamento || !sintomasIA) {
+        console.error('❌ Campos de sintomas não encontrados!');
+        return;
+    }
 
     sintomasAgendamento.addEventListener('input', (e) => {
+        console.log('📝 [Agendamento → IA] Valor:', e.target.value.substring(0, 30) + '...');
         if (!syncInProgress) {
             syncInProgress = true;
             sintomasIA.value = e.target.value;
@@ -165,6 +173,7 @@ function setupFieldSync() {
     });
 
     sintomasIA.addEventListener('input', (e) => {
+        console.log('📝 [IA → Agendamento] Valor:', e.target.value.substring(0, 30) + '...');
         if (!syncInProgress) {
             syncInProgress = true;
             sintomasAgendamento.value = e.target.value;
@@ -559,25 +568,37 @@ function setupValidation() {
 }
 
 // ========================================
+// EXPOR FUNÇÕES NO ESCOPO GLOBAL
+// ========================================
+// Funções chamadas via onclick no HTML precisam estar no window
+window.toggleMobileMenu = toggleMobileMenu;
+window.scrollToAgendamento = scrollToAgendamento;
+window.scrollTo = scrollTo;
+window.switchTab = switchTab;
+window.obterDicas = obterDicas;
+
+// ========================================
 // INICIALIZAÇÃO GERAL
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Sistema carregado - Conectado ao N8N');
-    
+
     // Navegação
     setupHeaderScroll();
     setupActiveLinks();
     setupMobileOverlay();
     setupMobileLinks();
-    
+
     // Formulários
     setupFieldSync();
     setupConvenio();
     setupTelefoneMask();
     setupFormAgendamento();
     setupFormConsultar();
-    
+
     // UI
     setupAnimations();
     setupValidation();
+
+    console.log('✅ Todas as funções carregadas e expostas globalmente');
 });
