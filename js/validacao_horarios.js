@@ -82,9 +82,16 @@ const CACHE_OCUPADOS = new Map();
 
 async function buscarHorariosOcupados(dataISO) {
   if (!dataISO) return [];
-  if (CACHE_OCUPADOS.has(dataISO)) return CACHE_OCUPADOS.get(dataISO);
+
+  console.log(`🔍 Buscando horários para data: ${dataISO}`);
+
+  if (CACHE_OCUPADOS.has(dataISO)) {
+    console.log(`📦 Usando cache para ${dataISO}`);
+    return CACHE_OCUPADOS.get(dataISO);
+  }
 
   const url = `${N8N_HORARIOS_OCUPADOS}?data=${encodeURIComponent(dataISO)}`;
+  console.log(`🌐 Requisição: ${url}`);
 
   try {
     const res = await fetch(url, { method: 'GET' });
@@ -353,11 +360,39 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ========================================
-// LIMPAR CACHE
+// LIMPAR CACHE - CORRIGIDO
 // ========================================
-function limparCache() {
-  cacheHorarios = {};
-  console.log('🗑️ Cache de horários limpo');
+function limparCache(dataISO = null) {
+  if (dataISO) {
+    // Limpa apenas a data específica
+    CACHE_OCUPADOS.delete(dataISO);
+    console.log(`🗑️ Cache limpo para data: ${dataISO}`);
+  } else {
+    // Limpa todo o cache
+    CACHE_OCUPADOS.clear();
+    console.log('🗑️ Todo o cache de horários limpo');
+  }
+}
+
+// ========================================
+// REFRESH APÓS AGENDAMENTO
+// ========================================
+async function refreshHorariosAposAgendamento() {
+  // Pega a data atualmente selecionada
+  const inputData = document.getElementById('data');
+  const dataAtual = inputData?.value;
+
+  if (dataAtual) {
+    console.log('🔄 Atualizando horários para', dataAtual);
+    // Limpa cache dessa data específica
+    limparCache(dataAtual);
+    // Re-busca horários
+    await atualizarHorarios(dataAtual);
+    console.log('✅ Horários atualizados!');
+  }
+
+  // Atualiza também a lista de datas indisponíveis (próximos 14 dias)
+  await atualizarDatasIndisponiveis();
 }
 
 // ========================================
@@ -369,5 +404,6 @@ window.validacaoHorarios = {
   buscarHorariosOcupados,
   atualizarHorarios,
   validarData,
-  limparCache
+  limparCache,
+  refreshHorariosAposAgendamento
 };
