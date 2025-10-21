@@ -159,7 +159,8 @@ function setupFieldSync() {
         if (!syncInProgress) {
             syncInProgress = true;
             sintomasIA.value = e.target.value;
-            syncInProgress = false;
+            // Usar setTimeout para garantir que a flag só seja limpa após o evento ser processado
+            setTimeout(() => { syncInProgress = false; }, 0);
         }
     });
 
@@ -167,9 +168,12 @@ function setupFieldSync() {
         if (!syncInProgress) {
             syncInProgress = true;
             sintomasAgendamento.value = e.target.value;
-            syncInProgress = false;
+            // Usar setTimeout para garantir que a flag só seja limpa após o evento ser processado
+            setTimeout(() => { syncInProgress = false; }, 0);
         }
     });
+
+    console.log('✅ Sincronização de campos de sintomas configurada');
 }
 
 // ========================================
@@ -412,9 +416,14 @@ function setupFormConsultar() {
 // DICAS DE IA
 // ========================================
 async function obterDicas() {
+    console.log('🤖 obterDicas() chamada');
+
     const sintomas = document.getElementById('sintomasIA').value.trim();
     const resultado = document.getElementById('dicasResultado');
     const btn = document.getElementById('btnObterDicas');
+
+    console.log('📝 Sintomas:', sintomas);
+    console.log('🔗 Webhook URL:', CONFIG.webhookDicas);
 
     if (!sintomas) {
         showToast('Por favor, descreva seus sintomas antes de solicitar dicas.', 'error');
