@@ -1,16 +1,55 @@
 /* =========================================================================
-   CONFIG – Endpoints do N8N
+   CONFIG – Carrega configurações centralizadas
    ========================================================================= */
-const N8N_BASE_URL = 'https://solitaryhornet-n8n.cloudfy.live/webhook';
-const N8N_HORARIOS_OCUPADOS = `${N8N_BASE_URL}/consultar-horarios-ocupados`;
+// Aguarda que config.js seja carregado primeiro (via script tag no HTML)
+const CONFIG = window.CLINIC_CONFIG || {
+  n8n: {
+    baseUrl: 'https://solitaryhornet-n8n.cloudfy.live/webhook',
+    endpoints: { horariosOcupados: '/consultar-horarios-ocupados' }
+  },
+  horarios: ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'],
+  timezone: null,
+  timezoneFallback: 'America/Campo_Grande'
+};
+
+const N8N_BASE_URL = CONFIG.n8n.baseUrl;
+const N8N_HORARIOS_OCUPADOS = `${N8N_BASE_URL}${CONFIG.n8n.endpoints.horariosOcupados}`;
+
+/* =========================================================================
+   CONFIG – TIMEZONE (detecção automática ou forçado)
+   ========================================================================= */
+function detectarTimezone() {
+  // Se há timezone forçado na config, usa ele
+  if (CONFIG.timezone) {
+    console.log(`🌍 Timezone forçado pela configuração: ${CONFIG.timezone}`);
+    return CONFIG.timezone;
+  }
+
+  try {
+    // Tenta detectar timezone do navegador
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    if (timezone) {
+      console.log(`🌍 Timezone detectado automaticamente: ${timezone}`);
+      return timezone;
+    }
+  } catch (e) {
+    console.warn('⚠️ Falha ao detectar timezone:', e);
+  }
+
+  // Fallback da configuração
+  const fallback = CONFIG.timezoneFallback;
+  console.log(`🌍 Usando timezone fallback: ${fallback}`);
+  return fallback;
+}
+
+// Timezone global detectado automaticamente ou forçado
+const TIMEZONE_LOCAL = detectarTimezone();
 
 /* =========================================================================
    Regras de negócio – horários disponíveis por dia
    ========================================================================= */
-const HORARIOS_DISPONIVEIS = [
-  '08:00', '09:00', '10:00', '11:00',
-  '14:00', '15:00', '16:00', '17:00'
-];
+const HORARIOS_DISPONIVEIS = CONFIG.horarios;
 
 /* =========================================================================
    Feriados (fixos e móveis) + utilitários de data
@@ -156,31 +195,71 @@ async function atualizarHorarios(dataISO) {
   try {
     const horariosOcupados = await buscarHorariosOcupados(dataISO);
 
-    // Se todos ocupados → dia cheio (tratado também no calendário)
-    const todosOcupados = HORARIOS_DISPONIVEIS.every(h => horariosOcupados.includes(h));
-    if (todosOcupados) {
+    // 🔹 Verifica se é HOJE e pega hora atual (timezone MS)
+    const hoje = new Date().toLocaleDateString('en-CA'); // formato YYYY-MM-DD
+    const isHoje = (dataISO === hoje);
+
+    let horaAtualMinutos = 0;
+    if (isHoje) {
+      const agora = new Date().toLocaleTimeString('pt-BR', {
+        timeZone: TIMEZONE_LOCAL,
+        hour12: false
+      });
+      const [h, m] = agora.split(':').map(Number);
+      horaAtualMinutos = (h * 60) + m;
+      console.log(`⏰ Hora atual (${TIMEZONE_LOCAL}): ${agora} (${horaAtualMinutos} minutos)`);
+    }
+
+    // 🔹 Filtra horários: ocupados + passados
+    const horariosIndisponiveis = new Set(horariosOcupados);
+
+    if (isHoje) {
+      HORARIOS_DISPONIVEIS.forEach(hora => {
+        const [h, m] = hora.split(':').map(Number);
+        const horarioMinutos = (h * 60) + m;
+
+        if (horarioMinutos <= horaAtualMinutos) {
+          horariosIndisponiveis.add(hora);
+        }
+      });
+    }
+
+    // Se todos indisponíveis → dia cheio
+    const todosIndisponiveis = HORARIOS_DISPONIVEIS.every(h => horariosIndisponiveis.has(h));
+    if (todosIndisponiveis) {
       selectHorario.innerHTML = '<option value="">Nenhum horário disponível</option>';
       if (feedbackDiv) {
+        const motivo = isHoje ? 'todos os horários já passaram ou estão ocupados' : 'todos os horários estão ocupados';
         feedbackDiv.innerHTML = `
           <div style="display:flex;align-items:center;gap:8px;color:#ff6b6b;margin-top:8px;">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="7" stroke="#ff6b6b" stroke-width="1.5"/>
               <path d="M8 4V8M8 11H8.01" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
             </svg>
-            <span>Data indisponível: todos os horários estão ocupados</span>
+            <span>Data indisponível: ${motivo}</span>
           </div>
         `;
       }
       return;
     }
 
-    // Recria as opções, marcando ocupados
+    // Recria as opções, marcando ocupados e passados
     selectHorario.innerHTML = '<option value="">Selecione um horário</option>';
     HORARIOS_DISPONIVEIS.forEach(hora => {
       const opt = document.createElement('option');
       opt.value = hora;
 
-      if (horariosOcupados.includes(hora)) {
+      const [h, m] = hora.split(':').map(Number);
+      const horarioMinutos = (h * 60) + m;
+      const jaPassou = isHoje && horarioMinutos <= horaAtualMinutos;
+      const ocupado = horariosOcupados.includes(hora);
+
+      if (jaPassou) {
+        opt.textContent = `${hora} — já passou`;
+        opt.disabled = true;
+        opt.style.color = '#888';
+        opt.style.fontStyle = 'italic';
+      } else if (ocupado) {
         opt.textContent = `${hora} — ocupado`;
         opt.disabled = true;
         opt.style.color = '#ff6b6b';
@@ -405,5 +484,6 @@ window.validacaoHorarios = {
   atualizarHorarios,
   validarData,
   limparCache,
-  refreshHorariosAposAgendamento
+  refreshHorariosAposAgendamento,
+  getTimezone: () => TIMEZONE_LOCAL
 };

@@ -532,9 +532,12 @@
     <!-- NOTIFICATION TOAST -->
     <div id="toast" class="toast"></div>
 
-    <!-- IMPORTANTE: Carregar validação-horarios.js ANTES do script.js -->
-    <script src="./js/script.js"></script>
+    <!-- SCRIPTS: Ordem é importante! -->
+    <!-- 1. Carrega configuração primeiro -->
+    <script src="./js/config.js"></script>
+    <!-- 2. Depois carrega os módulos que dependem da config -->
     <script src="./js/validacao_horarios.js"></script>
+    <script src="./js/script.js"></script>
 </body>
 
 </html>
