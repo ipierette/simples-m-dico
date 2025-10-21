@@ -1,11 +1,22 @@
 // ========================================
-// CONFIGURAÇÕES - WEBHOOKS N8N
+// CONFIGURAÇÕES - Carrega do config.js
 // ========================================
+const CLINIC_CONF = window.CLINIC_CONFIG || {
+    n8n: {
+        baseUrl: 'https://solitaryhornet-n8n.cloudfy.live/webhook',
+        endpoints: {
+            agendar: '/agendar-consulta',
+            consultar: '/consultar-agendamento',
+            dicas: '/dicas-saude'
+        }
+    }
+};
+
 const CONFIG = {
-    n8nBase: 'https://solitaryhornet-n8n.cloudfy.live/webhook',
-    webhookAgendar: 'https://solitaryhornet-n8n.cloudfy.live/webhook/agendar-consulta',
-    webhookConsultar: 'https://solitaryhornet-n8n.cloudfy.live/webhook/consultar-agendamento',
-    webhookDicas: 'https://solitaryhornet-n8n.cloudfy.live/webhook/dicas-saude'
+    n8nBase: CLINIC_CONF.n8n.baseUrl,
+    webhookAgendar: `${CLINIC_CONF.n8n.baseUrl}${CLINIC_CONF.n8n.endpoints.agendar}`,
+    webhookConsultar: `${CLINIC_CONF.n8n.baseUrl}${CLINIC_CONF.n8n.endpoints.consultar}`,
+    webhookDicas: `${CLINIC_CONF.n8n.baseUrl}${CLINIC_CONF.n8n.endpoints.dicas}`
 };
 
 // ========================================

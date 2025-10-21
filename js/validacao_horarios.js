@@ -1,16 +1,55 @@
 /* =========================================================================
-   CONFIG – Endpoints do N8N
+   CONFIG – Carrega configurações centralizadas
    ========================================================================= */
-const N8N_BASE_URL = 'https://solitaryhornet-n8n.cloudfy.live/webhook';
-const N8N_HORARIOS_OCUPADOS = `${N8N_BASE_URL}/consultar-horarios-ocupados`;
+// Aguarda que config.js seja carregado primeiro (via script tag no HTML)
+const CONFIG = window.CLINIC_CONFIG || {
+  n8n: {
+    baseUrl: 'https://solitaryhornet-n8n.cloudfy.live/webhook',
+    endpoints: { horariosOcupados: '/consultar-horarios-ocupados' }
+  },
+  horarios: ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'],
+  timezone: null,
+  timezoneFallback: 'America/Campo_Grande'
+};
+
+const N8N_BASE_URL = CONFIG.n8n.baseUrl;
+const N8N_HORARIOS_OCUPADOS = `${N8N_BASE_URL}${CONFIG.n8n.endpoints.horariosOcupados}`;
+
+/* =========================================================================
+   CONFIG – TIMEZONE (detecção automática ou forçado)
+   ========================================================================= */
+function detectarTimezone() {
+  // Se há timezone forçado na config, usa ele
+  if (CONFIG.timezone) {
+    console.log(`🌍 Timezone forçado pela configuração: ${CONFIG.timezone}`);
+    return CONFIG.timezone;
+  }
+
+  try {
+    // Tenta detectar timezone do navegador
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    if (timezone) {
+      console.log(`🌍 Timezone detectado automaticamente: ${timezone}`);
+      return timezone;
+    }
+  } catch (e) {
+    console.warn('⚠️ Falha ao detectar timezone:', e);
+  }
+
+  // Fallback da configuração
+  const fallback = CONFIG.timezoneFallback;
+  console.log(`🌍 Usando timezone fallback: ${fallback}`);
+  return fallback;
+}
+
+// Timezone global detectado automaticamente ou forçado
+const TIMEZONE_LOCAL = detectarTimezone();
 
 /* =========================================================================
    Regras de negócio – horários disponíveis por dia
    ========================================================================= */
-const HORARIOS_DISPONIVEIS = [
-  '08:00', '09:00', '10:00', '11:00',
-  '14:00', '15:00', '16:00', '17:00'
-];
+const HORARIOS_DISPONIVEIS = CONFIG.horarios;
 
 /* =========================================================================
    Feriados (fixos e móveis) + utilitários de data
@@ -163,12 +202,12 @@ async function atualizarHorarios(dataISO) {
     let horaAtualMinutos = 0;
     if (isHoje) {
       const agora = new Date().toLocaleTimeString('pt-BR', {
-        timeZone: 'America/Campo_Grande',
+        timeZone: TIMEZONE_LOCAL,
         hour12: false
       });
       const [h, m] = agora.split(':').map(Number);
       horaAtualMinutos = (h * 60) + m;
-      console.log(`⏰ Hora atual (MS): ${agora} (${horaAtualMinutos} minutos)`);
+      console.log(`⏰ Hora atual (${TIMEZONE_LOCAL}): ${agora} (${horaAtualMinutos} minutos)`);
     }
 
     // 🔹 Filtra horários: ocupados + passados
@@ -445,5 +484,6 @@ window.validacaoHorarios = {
   atualizarHorarios,
   validarData,
   limparCache,
-  refreshHorariosAposAgendamento
+  refreshHorariosAposAgendamento,
+  getTimezone: () => TIMEZONE_LOCAL
 };
